@@ -1,100 +1,142 @@
 package main
 
-import (
-	"fmt"
-)
+import "fmt"
 
-type DfaNode struct {
-	id          int
-	transitions map[uint8]*DfaNode
+type TokenType string
+
+type Token struct {
+	tokenType TokenType
+	value     interface{}
 }
 
-type Dfa struct {
-	start *DfaNode
+func (t Token) is(_type TokenType) bool {
+	return t.tokenType == _type
 }
 
-func (node *DfaNode) end() bool {
-	return len(node.transitions) == 0
+type Memory struct {
+	pos    int
+	tokens []Token
 }
 
-func (node *DfaNode) print() string {
-	stuff := ""
-	for token, n := range node.transitions {
-		stuff += fmt.Sprintf("[%d] -> '%c' -> (%s)\n", node.id, token, n.print())
-	}
-
-	return stuff
+func (p *Memory) loc() int {
+	return p.pos
 }
 
-func (node *DfaNode) check(input string, pos int) bool {
-	if pos == len(input) && node.end() {
-		return true
-	}
-
-	if pos >= len(input) {
-		return false
-	}
-
-	ch := input[pos]
-	result := node.transitions[ch]
-	if result != nil {
-		return result.check(input, pos+1)
-	}
-
-	epsilon := node.transitions[0]
-	if epsilon != nil {
-		return epsilon.check(input, pos)
-	}
-
-	return false
+func (p *Memory) adv() int {
+	p.pos += 1
+	return p.pos
 }
 
-func (dfa Dfa) print() {
-	fmt.Println(dfa.start.print())
+func isAlphabetUppercase(ch uint8) bool {
+	return ch >= 'A' && ch <= 'Z'
 }
 
-func (dfa Dfa) check(input string) {
-	fmt.Println(dfa.start.check(input, 0))
+func isAlphabetLowercase(ch uint8) bool {
+	return ch >= 'a' && ch <= 'z'
 }
 
-func toDfa(regexString string, pos int, startNode *DfaNode) {
-	if pos >= len(regexString) {
-		return
-	}
+func isNumeric(ch uint8) bool {
+	return ch >= '0' && ch <= '9'
+}
 
-	optionalChar := false
-	if pos < len(regexString)-1 && regexString[pos+1] == '?' {
-		epsilon := DfaNode{id: pos + 100, transitions: map[uint8]*DfaNode{}}
-		(*startNode).transitions[0] = &epsilon
-		toDfa(regexString, pos+2, &epsilon)
-		optionalChar = true
-	}
+func isQuantifier(ch uint8) bool {
+	return ch == '*' || ch == '?' || ch == '+'
+}
 
-	ch := regexString[pos]
-	node := DfaNode{id: pos, transitions: map[uint8]*DfaNode{}}
-	(*startNode).transitions[ch] = &node
+func parseRange(regexString string, memory *Memory) {
+	for regexString[memory.loc()] != ']' {
+		ch := regexString[memory.loc()]
 
-	if optionalChar {
-		toDfa(regexString, pos+2, &node)
-	} else {
-		toDfa(regexString, pos+1, &node)
+		if ch == '-' {
+			prevChar := regexString[memory.loc()-1]
+			nextChar := regexString[memory.adv()]
+			token := Token{
+				tokenType: "range",
+				value:     fmt.Sprintf("%c-%c", prevChar, nextChar),
+			}
+			memory.tokens = append(memory.tokens, token)
+		}
+
+		memory.adv()
 	}
 }
 
-func ToDfa(regexString string) Dfa {
-	startNode := DfaNode{id: -1, transitions: map[uint8]*DfaNode{}}
-	toDfa(regexString, 0, &startNode)
+func parseGroup(regexString string, memory *Memory) {
+	count := len(memory.tokens)
+	for regexString[memory.loc()] != ')' {
+		ch := regexString[memory.loc()]
+		processChar(regexString, memory, ch)
+	}
+	elementsCount := len(memory.tokens) - count
 
-	return Dfa{
-		start: &startNode,
+	token := Token{
+		tokenType: "group",
+		value:     memory.tokens[len(memory.tokens)-elementsCount:],
+	}
+	memory.tokens = append([]Token{}, memory.tokens[:len(memory.tokens)-elementsCount]...)
+	memory.tokens = append(memory.tokens, token)
+}
+
+var quantifiers = map[uint8]TokenType{
+	'*': "none_or_more",
+	'+': "one_or_more",
+	'?': "optional",
+}
+
+func parseQuantifier(ch uint8, memory *Memory) {
+	lastToken := memory.tokens[len(memory.tokens)-1]
+	token := Token{
+		tokenType: quantifiers[ch],
+		value:     lastToken,
+	}
+	memory.tokens = append([]Token{}, memory.tokens[:len(memory.tokens)-1]...)
+	memory.tokens = append(memory.tokens, token)
+}
+
+func parseOr(regexString string, memory *Memory) {
+	token := Token{
+		tokenType: "or",
+	}
+	memory.tokens = append(memory.tokens, token)
+}
+
+func processChar(regexString string, memory *Memory, ch uint8) {
+	if ch == '(' {
+		memory.adv()
+		parseGroup(regexString, memory)
+	} else if ch == '[' {
+		memory.adv()
+		parseRange(regexString, memory)
+	} else if isQuantifier(ch) {
+		parseQuantifier(ch, memory)
+	} else if isAlphabetUppercase(ch) || isAlphabetLowercase(ch) || isNumeric(ch) {
+		token := Token{
+			tokenType: "construct",
+			value:     fmt.Sprintf("%c", ch),
+		}
+		memory.tokens = append(memory.tokens, token)
+	} else if ch == '|' {
+		parseOr(regexString, memory)
+	}
+	memory.adv()
+}
+
+func regex(regexString string, memory *Memory) {
+	for memory.loc() < len(regexString) {
+		ch := regexString[memory.loc()]
+		processChar(regexString, memory, ch)
 	}
 }
 
 func main() {
-	//ToDfa("ab?c").check("ac")
-	//ToDfa("ab?c").check("abc")
-	//ToDfa("ab?c").check("abcd")
-	ToDfa("a?b?c?").check("abc")
-	ToDfa("a?b?c?").check("a")
-	ToDfa("a?b?c?").print()
+	input := "(a|b|c)?cd*"
+	memory := Memory{
+		pos:    0,
+		tokens: []Token{},
+	}
+	regex(input, &memory)
+
+	for i := range memory.tokens {
+		fmt.Printf("%+v\n", memory.tokens[i])
+	}
 }
