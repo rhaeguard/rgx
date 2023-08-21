@@ -2,22 +2,52 @@ package rgx
 
 import "fmt"
 
+//func toNfa(memory *parsingMemory) *State {
+//	token := memory.tokens[0]
+//	start, end := tokenToNfa(token)
+//
+//	for i := range memory.tokens {
+//		if i == 0 {
+//			continue
+//		}
+//
+//		startNext, endNext := tokenToNfa(memory.tokens[i])
+//		end.transitions[0] = append(end.transitions[0], startNext)
+//
+//		end = endNext
+//	}
+//
+//	end.makeTerminal()
+//
+//	return start
+//}
+
 func toNfa(memory *parsingMemory) *State {
 	token := memory.tokens[0]
-	start, end := tokenToNfa(token)
+	startState, endState := tokenToNfa(token)
 
 	for i := range memory.tokens {
 		if i == 0 {
 			continue
 		}
-
 		startNext, endNext := tokenToNfa(memory.tokens[i])
-		end.transitions[0] = append(end.transitions[0], startNext)
+		endState.transitions[0] = append(endState.transitions[0], startNext)
 
-		end = endNext
+		endState = endNext
 	}
 
-	end.makeTerminal()
+	start := &State{
+		transitions: map[uint8][]*State{
+			0: {startState},
+		},
+	}
+
+	end := &State{
+		transitions: map[uint8][]*State{},
+		terminal:    true,
+	}
+
+	endState.transitions[0] = append(endState.transitions[0], end)
 
 	return start
 }
@@ -136,13 +166,13 @@ func getChar(input string, pos int) uint8 {
 }
 
 func (s *State) check(regex string, pos int) bool {
-	ch := getChar(regex, pos)
+	current := getChar(regex, pos)
 
-	if ch == EndOfText && s.terminal {
+	if current == EndOfText && s.terminal {
 		return true
 	}
 
-	realTransitions := s.transitions[ch]
+	realTransitions := s.transitions[current]
 	for i := range realTransitions {
 		state := realTransitions[i]
 		if state.check(regex, pos+1) {
