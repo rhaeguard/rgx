@@ -18,6 +18,9 @@ func TestCheck(t *testing.T) {
 		{"a?b?c?", "", true},
 		{"colou?r", "color", true},
 		{"colou?r", "colour", true},
+		{"gr(a|e)y", "grey", true},
+		{"gr(a|e)y", "gray", true},
+		{"gr(a|e)y", "gruy", false},
 	}
 
 	for _, test := range data {

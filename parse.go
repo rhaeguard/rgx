@@ -13,29 +13,29 @@ func (t regexToken) is(_type regexTokenType) bool {
 	return t.tokenType == _type
 }
 
-type parsingMemory struct {
+type context struct {
 	pos    int
 	tokens []regexToken
 }
 
-func (p *parsingMemory) loc() int {
+func (p *context) loc() int {
 	return p.pos
 }
 
-func (p *parsingMemory) adv() int {
+func (p *context) adv() int {
 	p.pos += 1
 	return p.pos
 }
 
-func (p *parsingMemory) push(token regexToken) {
+func (p *context) push(token regexToken) {
 	p.tokens = append(p.tokens, token)
 }
 
-func (p *parsingMemory) getLast(count int) []regexToken {
+func (p *context) getLast(count int) []regexToken {
 	return p.tokens[len(p.tokens)-count:]
 }
 
-func (p *parsingMemory) removeLast(count int) {
+func (p *context) removeLast(count int) {
 	p.tokens = append([]regexToken{}, p.tokens[:len(p.tokens)-count]...)
 }
 
@@ -55,7 +55,7 @@ func isQuantifier(ch uint8) bool {
 	return ch == '*' || ch == '?' || ch == '+'
 }
 
-func parseRange(regexString string, memory *parsingMemory) {
+func parseRange(regexString string, memory *context) {
 	for regexString[memory.loc()] != ']' {
 		ch := regexString[memory.loc()]
 
@@ -73,7 +73,7 @@ func parseRange(regexString string, memory *parsingMemory) {
 	}
 }
 
-func parseGroup(regexString string, memory *parsingMemory) {
+func parseGroup(regexString string, memory *context) {
 	count := len(memory.tokens)
 	for regexString[memory.loc()] != ')' {
 		ch := regexString[memory.loc()]
@@ -96,7 +96,7 @@ var quantifiers = map[uint8]regexTokenType{
 	'?': "optional",
 }
 
-func parseQuantifier(ch uint8, memory *parsingMemory) {
+func parseQuantifier(ch uint8, memory *context) {
 	token := regexToken{
 		tokenType: quantifiers[ch],
 		value:     memory.getLast(1),
@@ -105,7 +105,15 @@ func parseQuantifier(ch uint8, memory *parsingMemory) {
 	memory.push(token)
 }
 
-func processChar(regexString string, memory *parsingMemory, ch uint8) {
+func parseAlphaNums(regexString string, ch uint8, memory *context) {
+	token := regexToken{
+		tokenType: "construct",
+		value:     ch,
+	}
+	memory.push(token)
+}
+
+func processChar(regexString string, memory *context, ch uint8) {
 	if ch == '(' {
 		memory.adv()
 		parseGroup(regexString, memory)
@@ -115,11 +123,7 @@ func processChar(regexString string, memory *parsingMemory, ch uint8) {
 	} else if isQuantifier(ch) {
 		parseQuantifier(ch, memory)
 	} else if isAlphabetUppercase(ch) || isAlphabetLowercase(ch) || isNumeric(ch) {
-		token := regexToken{
-			tokenType: "construct",
-			value:     ch,
-		}
-		memory.push(token)
+		parseAlphaNums(regexString, ch, memory)
 	} else if ch == '|' {
 		// OR requires two tokens
 		// we process the ch to get the next token
@@ -134,7 +138,7 @@ func processChar(regexString string, memory *parsingMemory, ch uint8) {
 	}
 }
 
-func regex(regexString string, memory *parsingMemory) {
+func regex(regexString string, memory *context) {
 	for memory.loc() < len(regexString) {
 		ch := regexString[memory.loc()]
 		processChar(regexString, memory, ch)

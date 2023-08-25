@@ -1,7 +1,7 @@
 package rgx
 
 func Check(regexString string, inputString string) bool {
-	memory := parsingMemory{
+	memory := context{
 		pos:    0,
 		tokens: []regexToken{},
 	}

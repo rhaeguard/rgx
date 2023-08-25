@@ -2,27 +2,7 @@ package rgx
 
 import "fmt"
 
-//func toNfa(memory *parsingMemory) *State {
-//	token := memory.tokens[0]
-//	start, end := tokenToNfa(token)
-//
-//	for i := range memory.tokens {
-//		if i == 0 {
-//			continue
-//		}
-//
-//		startNext, endNext := tokenToNfa(memory.tokens[i])
-//		end.transitions[0] = append(end.transitions[0], startNext)
-//
-//		end = endNext
-//	}
-//
-//	end.makeTerminal()
-//
-//	return start
-//}
-
-func toNfa(memory *parsingMemory) *State {
+func toNfa(memory *context) *State {
 	token := memory.tokens[0]
 	startState, endState := tokenToNfa(token)
 
