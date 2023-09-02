@@ -46,6 +46,18 @@ func tokenToNfa(token regexToken) (*State, *State) {
 		}
 
 		return from, to
+	} else if token.is(Wildcard) {
+		to := &State{
+			transitions: map[uint8][]*State{},
+		}
+
+		from := &State{
+			transitions: map[uint8][]*State{
+				AnyChar: {to},
+			},
+		}
+
+		return from, to
 	} else if token.is(NoneOrMore) {
 		value := token.value.([]regexToken)[0]
 		start, end := tokenToNfa(value)
@@ -146,8 +158,9 @@ func (s *State) makeTerminal() {
 }
 
 const (
-	StartOfText = 0
-	EndOfText   = 3
+	StartOfText = 0  // ascii: null char
+	EndOfText   = 3  // ascii: end of text
+	AnyChar     = 26 // ascii: substitute
 )
 
 func getChar(input string, pos int) uint8 {
@@ -164,12 +177,18 @@ func getChar(input string, pos int) uint8 {
 
 func (s *State) check(regex string, pos int) bool {
 	current := getChar(regex, pos)
+	fmt.Printf("Pos: %d : ch: %c\n", pos, current)
 
 	if current == EndOfText && s.terminal {
 		return true
 	}
 
 	realTransitions := s.transitions[current]
+
+	if len(realTransitions) == 0 && current != EndOfText {
+		realTransitions = s.transitions[AnyChar]
+	}
+
 	for i := range realTransitions {
 		state := realTransitions[i]
 		if state.check(regex, pos+1) {

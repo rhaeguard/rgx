@@ -6,6 +6,6 @@ a simple regex engine written in go.
 
 - [ ] better error handling
 - [ ] ranges
-- [ ] wildcard
+- [x] wildcard
 - [ ] escape char
 - [ ] proper or, e.g., `(gray|grey)` should work

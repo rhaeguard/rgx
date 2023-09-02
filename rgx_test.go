@@ -43,6 +43,15 @@ func TestCheck(t *testing.T) {
 		{"he(ya)+o", "heyayao", true},
 		{"he(ya)+o", "heyayayo", false},
 		{"he(ya)+o", "heyayaya", false},
+		// wildcard
+		{"h.i", "hxi", true},
+		{"h.i", "hxxxi", false},
+		// wildcard and quantifiers
+		{"h.+i", "hxxxi", true},
+		{"h.*i", "hi", true},
+		{"hi.*", "hi", true},
+		{"hi.*", "hixxxx", true},
+		{"hi.*k", "hixxxz", false},
 	}
 
 	for _, test := range data {

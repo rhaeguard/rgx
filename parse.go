@@ -10,6 +10,7 @@ const (
 	Or                        = "or"
 	Range                     = "range"
 	Group                     = "group"
+	Wildcard                  = "wildcard"
 )
 
 type regexTokenType string
@@ -59,6 +60,10 @@ func isAlphabetLowercase(ch uint8) bool {
 
 func isNumeric(ch uint8) bool {
 	return ch >= '0' && ch <= '9'
+}
+
+func isDot(ch uint8) bool {
+	return ch == '.'
 }
 
 func isQuantifier(ch uint8) bool {
@@ -134,6 +139,12 @@ func processChar(regexString string, memory *context, ch uint8) {
 		parseQuantifier(ch, memory)
 	} else if isAlphabetUppercase(ch) || isAlphabetLowercase(ch) || isNumeric(ch) {
 		parseAlphaNums(ch, memory)
+	} else if isDot(ch) {
+		token := regexToken{
+			tokenType: Wildcard,
+			value:     ch,
+		}
+		memory.push(token)
 	} else if ch == '|' {
 		// OR requires two tokens
 		// we process the ch to get the next token
