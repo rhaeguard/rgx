@@ -10,6 +10,7 @@ func TestCheck(t *testing.T) {
 		regexString, input string
 		expected           bool
 	}{
+		// optionals
 		{"a?b?c?", "abc", true},
 		{"a?b?c?", "cd", false},
 		{"a?b?c?", "cdddd", false},
@@ -18,7 +19,7 @@ func TestCheck(t *testing.T) {
 		{"a?b?c?", "", true},
 		{"colou?r", "color", true},
 		{"colou?r", "colour", true},
-		// optionals
+		// basic groups
 		{"gr(a|e)y", "grey", true},
 		{"gr(a|e)y", "gray", true},
 		{"gr(a|e)y", "gruy", false},
@@ -31,6 +32,17 @@ func TestCheck(t *testing.T) {
 		{"hel*o", "hellllllo", true},
 		{"hel*o", "helllllloooooo", false},
 		{"hel*o", "heo", true},
+		// quantifiers with groups
+		{"he(ya)*o", "heo", true},
+		{"he(ya)*o", "heyao", true},
+		{"he(ya)*o", "heyayao", true},
+		{"he(ya)*o", "heyayayo", false},
+		{"he(ya)*o", "heyayaya", false},
+		{"he(ya)+o", "heo", false},
+		{"he(ya)+o", "heyao", true},
+		{"he(ya)+o", "heyayao", true},
+		{"he(ya)+o", "heyayayo", false},
+		{"he(ya)+o", "heyayaya", false},
 	}
 
 	for _, test := range data {
