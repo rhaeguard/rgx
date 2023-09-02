@@ -8,7 +8,7 @@ const (
 	OneOrMore                 = "one_or_more"
 	Optional                  = "optional"
 	Or                        = "or"
-	Range                     = "range"
+	Bracket                   = "range"
 	Group                     = "group"
 	Wildcard                  = "wildcard"
 )
@@ -70,22 +70,69 @@ func isQuantifier(ch uint8) bool {
 	return ch == '*' || ch == '?' || ch == '+'
 }
 
-func parseRange(regexString string, memory *context) {
+func sliceContains(slice []string, element string) bool {
+	for _, el := range slice {
+		if el == element {
+			return true
+		}
+	}
+	return false
+}
+
+func parseBracket(regexString string, memory *context) {
+	var pieces []string
+
 	for regexString[memory.loc()] != ']' {
 		ch := regexString[memory.loc()]
 
 		if ch == '-' {
-			prevChar := regexString[memory.loc()-1]
+			prevChar := pieces[len(pieces)-1][0] // TODO: maybe do smth better?
 			nextChar := regexString[memory.adv()]
-			token := regexToken{
-				tokenType: Range,
-				value:     fmt.Sprintf("%c-%c", prevChar, nextChar),
+			bothNumeric := isNumeric(prevChar) && isNumeric(nextChar)
+			bothLowercase := isAlphabetLowercase(prevChar) && isAlphabetLowercase(nextChar)
+			bothUppercase := isAlphabetUppercase(prevChar) && isAlphabetUppercase(nextChar)
+			if bothNumeric || bothLowercase || bothUppercase {
+				pieces[len(pieces)-1] = fmt.Sprintf("%c%c", prevChar, nextChar)
+			} else {
+				panic(fmt.Sprintf("'%c-%c' range is invalid", prevChar, nextChar))
 			}
-			memory.tokens = append(memory.tokens, token)
+		} else {
+			pieces = append(pieces, fmt.Sprintf("%c", ch))
 		}
 
 		memory.adv()
 	}
+	var uniqueCharacterPieces []string
+	for _, piece := range pieces {
+		if !sliceContains(uniqueCharacterPieces, piece) {
+			uniqueCharacterPieces = append(uniqueCharacterPieces, piece)
+		}
+	}
+
+	var finalTokens []regexToken
+	for _, piece := range uniqueCharacterPieces {
+		if len(piece) == 1 {
+			finalTokens = append(finalTokens, regexToken{
+				tokenType: Construct,
+				value:     piece[0],
+			})
+		} else if len(piece) == 2 {
+			for s := piece[0]; s <= piece[1]; s++ {
+				finalTokens = append(finalTokens, regexToken{
+					tokenType: Construct,
+					value:     s,
+				})
+			}
+		} else {
+			panic("piece must have max 2 characters")
+		}
+	}
+
+	token := regexToken{
+		tokenType: Bracket,
+		value:     finalTokens,
+	}
+	memory.tokens = append(memory.tokens, token)
 }
 
 func parseGroup(regexString string, memory *context) {
@@ -134,7 +181,7 @@ func processChar(regexString string, memory *context, ch uint8) {
 		parseGroup(regexString, memory)
 	} else if ch == '[' {
 		memory.adv()
-		parseRange(regexString, memory)
+		parseBracket(regexString, memory)
 	} else if isQuantifier(ch) {
 		parseQuantifier(ch, memory)
 	} else if isAlphabetUppercase(ch) || isAlphabetLowercase(ch) || isNumeric(ch) {

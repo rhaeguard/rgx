@@ -4,8 +4,8 @@ a simple regex engine written in go.
 
 ## todo
 
-- [ ] better error handling
-- [ ] ranges
 - [x] wildcard
-- [ ] escape char
+- [x] basic brackets (ranges, literals)
 - [ ] proper or, e.g., `(gray|grey)` should work
+- [ ] escape char
+- [ ] better error handling

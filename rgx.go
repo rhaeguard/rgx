@@ -142,6 +142,26 @@ func tokenToNfa(token regexToken) (*State, *State) {
 		end.transitions[0] = append(end.transitions[0], to)
 
 		return from, to
+	} else if token.is(Bracket) {
+		constructTokens := token.value.([]regexToken)
+
+		from := &State{
+			transitions: map[uint8][]*State{},
+		}
+
+		to := &State{
+			transitions: map[uint8][]*State{},
+		}
+
+		var allStartStates []*State
+		for _, construct := range constructTokens {
+			start, end := tokenToNfa(construct)
+			allStartStates = append(allStartStates, start)
+			end.transitions[0] = append(end.transitions[0], to)
+		}
+		from.transitions[0] = allStartStates
+
+		return from, to
 	}
 
 	panic(fmt.Sprintf("unrecognized token type: %s", token.tokenType))

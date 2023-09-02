@@ -52,13 +52,27 @@ func TestCheck(t *testing.T) {
 		{"hi.*", "hi", true},
 		{"hi.*", "hixxxx", true},
 		{"hi.*k", "hixxxz", false},
+		// brackets and ranges
+		{"h[ae-ux]llo", "hello", true},
+		{"h[ae-ux]llo", "hallo", true},
+		{"h[ae-ux]llo", "hmllo", true},
+		{"h[ae-ux]llo", "hullo", true},
+		{"h[ae-ux]llo", "hxllo", true},
+		{"h[ae-ux]llo", "hwllo", false},
+		{"199[0-3]", "1990", true},
+		{"199[0-3]", "1991", true},
+		{"199[0-3]", "1992", true},
+		{"199[0-3]", "1993", true},
+		// brackets and ranges + optionals
+		{"199[0-3]?", "1993", true},
+		{"199[0-3]?", "199", true},
 	}
 
 	for _, test := range data {
 		testName := fmt.Sprintf("%s-%s-%t", test.regexString, test.input, test.expected)
 		t.Run(testName, func(t *testing.T) {
 			if test.expected != Check(test.regexString, test.input) {
-				fmt.Errorf("test %s failed", testName)
+				_ = fmt.Errorf("test %s failed", testName)
 				t.Fail()
 			}
 		})
