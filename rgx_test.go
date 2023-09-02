@@ -18,9 +18,19 @@ func TestCheck(t *testing.T) {
 		{"a?b?c?", "", true},
 		{"colou?r", "color", true},
 		{"colou?r", "colour", true},
+		// optionals
 		{"gr(a|e)y", "grey", true},
 		{"gr(a|e)y", "gray", true},
 		{"gr(a|e)y", "gruy", false},
+		// quantifiers
+		{"hel+o", "helo", true},
+		{"hel+o", "hellllllo", true},
+		{"hel+o", "helllllloooooo", false},
+		{"hel+o", "heo", false},
+		{"hel*o", "helo", true},
+		{"hel*o", "hellllllo", true},
+		{"hel*o", "helllllloooooo", false},
+		{"hel*o", "heo", true},
 	}
 
 	for _, test := range data {

@@ -33,7 +33,7 @@ func toNfa(memory *context) *State {
 }
 
 func tokenToNfa(token regexToken) (*State, *State) {
-	if token.is("construct") {
+	if token.is(Construct) {
 		value := token.value.(uint8)
 		to := &State{
 			transitions: map[uint8][]*State{},
@@ -46,7 +46,7 @@ func tokenToNfa(token regexToken) (*State, *State) {
 		}
 
 		return from, to
-	} else if token.is("none_or_more") {
+	} else if token.is(NoneOrMore) {
 		value := token.value.([]regexToken)[0]
 		start, end := tokenToNfa(value)
 
@@ -63,7 +63,24 @@ func tokenToNfa(token regexToken) (*State, *State) {
 		end.transitions[0] = append(end.transitions[0], to, start)
 
 		return from, to
-	} else if token.is("or") {
+	} else if token.is(OneOrMore) {
+		value := token.value.([]regexToken)[0]
+		start, end := tokenToNfa(value)
+
+		to := &State{
+			transitions: map[uint8][]*State{},
+		}
+
+		from := &State{
+			transitions: map[uint8][]*State{
+				0: {start},
+			},
+		}
+
+		end.transitions[0] = append(end.transitions[0], to, start)
+
+		return from, to
+	} else if token.is(Or) {
 		values := token.value.([]regexToken)
 		start1, end1 := tokenToNfa(values[0])
 		start2, end2 := tokenToNfa(values[1])
@@ -82,7 +99,7 @@ func tokenToNfa(token regexToken) (*State, *State) {
 		end2.transitions[0] = append(end2.transitions[0], to)
 
 		return from, to
-	} else if token.is("group") {
+	} else if token.is(Group) {
 		values := token.value.([]regexToken)
 		start, end := tokenToNfa(values[0])
 
@@ -96,7 +113,7 @@ func tokenToNfa(token regexToken) (*State, *State) {
 		}
 
 		return start, end
-	} else if token.is("optional") {
+	} else if token.is(Optional) {
 		value := token.value.([]regexToken)[0]
 		start, end := tokenToNfa(value)
 

@@ -2,6 +2,16 @@ package rgx
 
 import "fmt"
 
+const (
+	Construct  regexTokenType = "construct"
+	NoneOrMore                = "none_or_more"
+	OneOrMore                 = "one_or_more"
+	Optional                  = "optional"
+	Or                        = "or"
+	Range                     = "range"
+	Group                     = "group"
+)
+
 type regexTokenType string
 
 type regexToken struct {
@@ -63,7 +73,7 @@ func parseRange(regexString string, memory *context) {
 			prevChar := regexString[memory.loc()-1]
 			nextChar := regexString[memory.adv()]
 			token := regexToken{
-				tokenType: "range",
+				tokenType: Range,
 				value:     fmt.Sprintf("%c-%c", prevChar, nextChar),
 			}
 			memory.tokens = append(memory.tokens, token)
@@ -83,7 +93,7 @@ func parseGroup(regexString string, memory *context) {
 	elementsCount := len(memory.tokens) - count
 
 	token := regexToken{
-		tokenType: "group",
+		tokenType: Group,
 		value:     memory.getLast(elementsCount),
 	}
 	memory.removeLast(elementsCount)
@@ -91,9 +101,9 @@ func parseGroup(regexString string, memory *context) {
 }
 
 var quantifiers = map[uint8]regexTokenType{
-	'*': "none_or_more",
-	'+': "one_or_more",
-	'?': "optional",
+	'*': NoneOrMore,
+	'+': OneOrMore,
+	'?': Optional,
 }
 
 func parseQuantifier(ch uint8, memory *context) {
@@ -105,9 +115,9 @@ func parseQuantifier(ch uint8, memory *context) {
 	memory.push(token)
 }
 
-func parseAlphaNums(regexString string, ch uint8, memory *context) {
+func parseAlphaNums(ch uint8, memory *context) {
 	token := regexToken{
-		tokenType: "construct",
+		tokenType: Construct,
 		value:     ch,
 	}
 	memory.push(token)
@@ -123,14 +133,14 @@ func processChar(regexString string, memory *context, ch uint8) {
 	} else if isQuantifier(ch) {
 		parseQuantifier(ch, memory)
 	} else if isAlphabetUppercase(ch) || isAlphabetLowercase(ch) || isNumeric(ch) {
-		parseAlphaNums(regexString, ch, memory)
+		parseAlphaNums(ch, memory)
 	} else if ch == '|' {
 		// OR requires two tokens
 		// we process the ch to get the next token
 		// and then construct the OR token
 		processChar(regexString, memory, regexString[memory.adv()])
 		token := regexToken{
-			tokenType: "or",
+			tokenType: Or,
 			value:     memory.getLast(2),
 		}
 		memory.removeLast(2)
