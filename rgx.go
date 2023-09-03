@@ -111,7 +111,7 @@ func tokenToNfa(token regexToken) (*State, *State) {
 		end2.transitions[0] = append(end2.transitions[0], to)
 
 		return from, to
-	} else if token.is(Group) {
+	} else if token.is(Group) || token.is(GroupUncaptured) {
 		values := token.value.([]regexToken)
 		start, end := tokenToNfa(values[0])
 
@@ -197,7 +197,6 @@ func getChar(input string, pos int) uint8 {
 
 func (s *State) check(regex string, pos int) bool {
 	current := getChar(regex, pos)
-	fmt.Printf("Pos: %d : ch: %c\n", pos, current)
 
 	if current == EndOfText && s.terminal {
 		return true

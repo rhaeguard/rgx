@@ -3,14 +3,15 @@ package rgx
 import "fmt"
 
 const (
-	Construct  regexTokenType = "construct"
-	NoneOrMore                = "none_or_more"
-	OneOrMore                 = "one_or_more"
-	Optional                  = "optional"
-	Or                        = "or"
-	Bracket                   = "range"
-	Group                     = "group"
-	Wildcard                  = "wildcard"
+	Construct       regexTokenType = "construct"
+	NoneOrMore                     = "none_or_more"
+	OneOrMore                      = "one_or_more"
+	Optional                       = "optional"
+	Or                             = "or"
+	Bracket                        = "range"
+	Group                          = "group"
+	GroupUncaptured                = "group_uncaptured"
+	Wildcard                       = "wildcard"
 )
 
 type regexTokenType string
@@ -36,6 +37,10 @@ func (p *context) loc() int {
 func (p *context) adv() int {
 	p.pos += 1
 	return p.pos
+}
+
+func (p *context) advTo(pos int) {
+	p.pos = pos
 }
 
 func (p *context) push(token regexToken) {
@@ -136,20 +141,48 @@ func parseBracket(regexString string, memory *context) {
 }
 
 func parseGroup(regexString string, memory *context) {
-	count := len(memory.tokens)
-	for regexString[memory.loc()] != ')' {
-		ch := regexString[memory.loc()]
-		processChar(regexString, memory, ch)
-		memory.adv()
+	groupContext := context{
+		pos:    memory.loc(),
+		tokens: []regexToken{},
 	}
-	elementsCount := len(memory.tokens) - count
+
+	for regexString[groupContext.loc()] != ')' {
+		ch := regexString[groupContext.loc()]
+		processChar(regexString, &groupContext, ch)
+		groupContext.adv()
+	}
 
 	token := regexToken{
 		tokenType: Group,
-		value:     memory.getLast(elementsCount),
+		value:     groupContext.tokens,
 	}
-	memory.removeLast(elementsCount)
 	memory.push(token)
+	memory.advTo(groupContext.loc())
+}
+
+func parseGroupUncaptured(regexString string, memory *context) {
+	groupContext := context{
+		pos:    memory.loc(),
+		tokens: []regexToken{},
+	}
+
+	for groupContext.loc() < len(regexString) && regexString[groupContext.loc()] != ')' {
+		ch := regexString[groupContext.loc()]
+		processChar(regexString, &groupContext, ch)
+		groupContext.adv()
+	}
+
+	token := regexToken{
+		tokenType: GroupUncaptured,
+		value:     groupContext.tokens,
+	}
+	memory.push(token)
+
+	if groupContext.loc() >= len(regexString) {
+		memory.advTo(groupContext.loc())
+	} else if regexString[groupContext.loc()] == ')' {
+		memory.advTo(groupContext.loc() - 1) // advance but do not consume the closing parenthesis
+	}
 }
 
 var quantifiers = map[uint8]regexTokenType{
@@ -196,12 +229,22 @@ func processChar(regexString string, memory *context, ch uint8) {
 		// OR requires two tokens
 		// we process the ch to get the next token
 		// and then construct the OR token
-		processChar(regexString, memory, regexString[memory.adv()])
+		//processChar(regexString, memory, regexString[memory.adv()])
+		left := regexToken{
+			tokenType: GroupUncaptured,
+			value:     memory.getLast(len(memory.tokens)),
+		}
+		memory.removeLast(len(memory.tokens))
+
+		memory.adv() // to not get stuck in the pipe char
+		parseGroupUncaptured(regexString, memory)
+		right := memory.getLast(1)[0] // TODO: better error handling
+		memory.removeLast(1)
+
 		token := regexToken{
 			tokenType: Or,
-			value:     memory.getLast(2),
+			value:     []regexToken{left, right},
 		}
-		memory.removeLast(2)
 		memory.push(token)
 	}
 }

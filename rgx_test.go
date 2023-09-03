@@ -66,6 +66,37 @@ func TestCheck(t *testing.T) {
 		// brackets and ranges + optionals
 		{"199[0-3]?", "1993", true},
 		{"199[0-3]?", "199", true},
+		// or/alternative
+		{"(gray|grey)", "gray", true},
+		{"(gray|grey)", "grey", true},
+		{"(gray|grey)", "gryy", false},
+		{"((gray|gruy)|grey)", "grey", true},
+		{"((gray|gruy)|grey)", "gray", true},
+		{"((gray|gruy)|grey)", "gruy", true},
+		{"((gray|gruy)|grey)", "gryy", false},
+		{"(gray|gruy|grey)", "gruy", true},
+		{"(gray|gruy|grey)", "gray", true},
+		{"(gray|gruy|grey)", "grey", true},
+		{"(gray|gruy|grey)", "greyish", false},
+	}
+
+	for _, test := range data {
+		testName := fmt.Sprintf("%s-%s-%t", test.regexString, test.input, test.expected)
+		t.Run(testName, func(t *testing.T) {
+			if test.expected != Check(test.regexString, test.input) {
+				_ = fmt.Errorf("test %s failed", testName)
+				t.Fail()
+			}
+		})
+	}
+}
+
+func TestCheckForDev(t *testing.T) {
+	var data = []struct {
+		regexString, input string
+		expected           bool
+	}{
+		{"(gray|grey)", "gray", true},
 	}
 
 	for _, test := range data {
