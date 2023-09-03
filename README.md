@@ -1,5 +1,7 @@
 # rgx
 
+![](https://github.com/rhaeguard/rgx/actions/workflows/go.yml/badge.svg)
+
 a simple regex engine written in go.
 
 ## todo
