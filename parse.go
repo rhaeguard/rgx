@@ -226,20 +226,20 @@ func processChar(regexString string, memory *context, ch uint8) {
 		}
 		memory.push(token)
 	} else if ch == '|' {
-		// OR requires two tokens
-		// we process the ch to get the next token
-		// and then construct the OR token
-		//processChar(regexString, memory, regexString[memory.adv()])
+		// everything to the left of the pipe in this specific "context"
+		// is considered as the left side of the OR
 		left := regexToken{
 			tokenType: GroupUncaptured,
 			value:     memory.getLast(len(memory.tokens)),
 		}
-		memory.removeLast(len(memory.tokens))
 
 		memory.adv() // to not get stuck in the pipe char
 		parseGroupUncaptured(regexString, memory)
-		right := memory.getLast(1)[0] // TODO: better error handling
-		memory.removeLast(1)
+		right := memory.getLast(1)[0] // TODO: better error handling?
+
+		// clear the memory as we do not need
+		// any of these tokens anymore
+		memory.removeLast(len(memory.tokens))
 
 		token := regexToken{
 			tokenType: Or,
