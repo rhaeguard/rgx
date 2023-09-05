@@ -18,6 +18,23 @@ func name() string {
 	return string(b)
 }
 
+type State struct {
+	name        string
+	terminal    bool
+	transitions map[uint8][]*State
+}
+
+func (s *State) makeTerminal() {
+	s.terminal = true
+}
+
+const (
+	StartOfText = 0  // ascii: null char
+	EndOfText   = 3  // ascii: end of text
+	AnyChar     = 26 // ascii: substitute
+	EpsilonChar = 0  // ascii: null char
+)
+
 func toNfa(memory *context) *State {
 	token := memory.tokens[0]
 	startState, endState := tokenToNfa(token)
@@ -27,7 +44,7 @@ func toNfa(memory *context) *State {
 			continue
 		}
 		startNext, endNext := tokenToNfa(memory.tokens[i])
-		endState.transitions[0] = append(endState.transitions[0], startNext)
+		endState.transitions[EpsilonChar] = append(endState.transitions[EpsilonChar], startNext)
 
 		endState = endNext
 	}
@@ -35,7 +52,7 @@ func toNfa(memory *context) *State {
 	start := &State{
 		name: "start",
 		transitions: map[uint8][]*State{
-			0: {startState},
+			EpsilonChar: {startState},
 		},
 	}
 
@@ -45,7 +62,7 @@ func toNfa(memory *context) *State {
 		terminal:    true,
 	}
 
-	endState.transitions[0] = append(endState.transitions[0], end)
+	endState.transitions[EpsilonChar] = append(endState.transitions[EpsilonChar], end)
 
 	return start
 }
@@ -92,11 +109,11 @@ func tokenToNfa(token regexToken) (*State, *State) {
 		from := &State{
 			name: name(),
 			transitions: map[uint8][]*State{
-				0: {start, to},
+				EpsilonChar: {start, to},
 			},
 		}
 
-		end.transitions[0] = append(end.transitions[0], to, start)
+		end.transitions[EpsilonChar] = append(end.transitions[EpsilonChar], to, start)
 
 		return from, to
 	} else if token.is(OneOrMore) {
@@ -111,11 +128,11 @@ func tokenToNfa(token regexToken) (*State, *State) {
 		from := &State{
 			name: name(),
 			transitions: map[uint8][]*State{
-				0: {start},
+				EpsilonChar: {start},
 			},
 		}
 
-		end.transitions[0] = append(end.transitions[0], to, start)
+		end.transitions[EpsilonChar] = append(end.transitions[EpsilonChar], to, start)
 
 		return from, to
 	} else if token.is(Or) {
@@ -131,12 +148,12 @@ func tokenToNfa(token regexToken) (*State, *State) {
 		from := &State{
 			name: name(),
 			transitions: map[uint8][]*State{
-				0: {start1, start2},
+				EpsilonChar: {start1, start2},
 			},
 		}
 
-		end1.transitions[0] = append(end1.transitions[0], to)
-		end2.transitions[0] = append(end2.transitions[0], to)
+		end1.transitions[EpsilonChar] = append(end1.transitions[EpsilonChar], to)
+		end2.transitions[EpsilonChar] = append(end2.transitions[EpsilonChar], to)
 
 		return from, to
 	} else if token.is(Group) || token.is(GroupUncaptured) {
@@ -146,7 +163,7 @@ func tokenToNfa(token regexToken) (*State, *State) {
 		i := 1
 		for i < len(values) {
 			startNext, endNext := tokenToNfa(values[i])
-			end.transitions[0] = append(end.transitions[0], startNext)
+			end.transitions[EpsilonChar] = append(end.transitions[EpsilonChar], startNext)
 
 			end = endNext
 			i++
@@ -165,11 +182,11 @@ func tokenToNfa(token regexToken) (*State, *State) {
 		from := &State{
 			name: name(),
 			transitions: map[uint8][]*State{
-				0: {start, to},
+				EpsilonChar: {start, to},
 			},
 		}
 
-		end.transitions[0] = append(end.transitions[0], to)
+		end.transitions[EpsilonChar] = append(end.transitions[EpsilonChar], to)
 
 		return from, to
 	} else if token.is(Bracket) {
@@ -190,7 +207,7 @@ func tokenToNfa(token regexToken) (*State, *State) {
 			start := &State{
 				name: name(),
 				transitions: map[uint8][]*State{
-					0: {to},
+					EpsilonChar: {to},
 				},
 			}
 			from.transitions[ch] = []*State{start}
@@ -226,22 +243,6 @@ func tokenToNfa(token regexToken) (*State, *State) {
 	panic(fmt.Sprintf("unrecognized token type: %s", token.tokenType))
 }
 
-type State struct {
-	name        string
-	terminal    bool
-	transitions map[uint8][]*State
-}
-
-func (s *State) makeTerminal() {
-	s.terminal = true
-}
-
-const (
-	StartOfText = 0  // ascii: null char
-	EndOfText   = 3  // ascii: end of text
-	AnyChar     = 26 // ascii: substitute
-)
-
 func getChar(input string, pos int) uint8 {
 	if pos >= 0 && pos < len(input) {
 		return input[pos]
@@ -254,8 +255,8 @@ func getChar(input string, pos int) uint8 {
 	return StartOfText
 }
 
-func (s *State) check(regex string, pos int) bool {
-	current := getChar(regex, pos)
+func (s *State) check(inputString string, pos int) bool {
+	current := getChar(inputString, pos)
 
 	if current == EndOfText && s.terminal {
 		return true
@@ -263,21 +264,23 @@ func (s *State) check(regex string, pos int) bool {
 
 	realTransitions := s.transitions[current]
 
+	// if there are no transitions for the current char as is
+	// then see if there's a transition for any char, i.e. dot (.) sign
 	if len(realTransitions) == 0 && current != EndOfText {
 		realTransitions = s.transitions[AnyChar]
 	}
 
 	for i := range realTransitions {
 		state := realTransitions[i]
-		if state.check(regex, pos+1) {
+		if state.check(inputString, pos+1) {
 			return true
 		}
 	}
 
-	epsilonTransitions := s.transitions[0]
+	epsilonTransitions := s.transitions[EpsilonChar]
 	for i := range epsilonTransitions {
 		state := epsilonTransitions[i]
-		if state.check(regex, pos) {
+		if state.check(inputString, pos) {
 			return true
 		}
 	}
@@ -291,7 +294,7 @@ func (s *State) dot(processedStateForDot map[string]bool) {
 		var label string
 		if char == AnyChar {
 			label = "any"
-		} else if char == 0 {
+		} else if char == EpsilonChar {
 			label = "ε"
 		} else {
 			label = fmt.Sprintf("%c", char)
