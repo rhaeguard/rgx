@@ -63,6 +63,21 @@ func TestCheck(t *testing.T) {
 		{"199[0-3]", "1991", true},
 		{"199[0-3]", "1992", true},
 		{"199[0-3]", "1993", true},
+		// brackets and ranges with negation
+		{"h[^ae-ux]llo", "hello", false},
+		{"h[^ae-ux]llo", "hallo", false},
+		{"h[^ae-ux]llo", "hmllo", false},
+		{"h[^ae-ux]llo", "hullo", false},
+		{"h[^ae-ux]llo", "hxllo", false},
+		{"h[^ae-ux]llo", "hwllo", true},
+		{"h[^ae-ux]llo", "hzllo", true},
+		{"h[^ae-ux]llo", "h.llo", true},
+		{"h[^ae-ux]llo", "h@llo", true},
+		{"h[^ae-ux]llo", "hllo", false},
+		{"199[^0-3]", "1990", false},
+		{"199[^0-3]", "1991", false},
+		{"199[^0-3]", "1992", false},
+		{"199[^0-3]", "1993", false},
 		// brackets and ranges + optionals
 		{"199[0-3]?", "1993", true},
 		{"199[0-3]?", "199", true},
@@ -96,12 +111,14 @@ func TestCheckForDev(t *testing.T) {
 		regexString, input string
 		expected           bool
 	}{
-		{"(gray|grey)", "gray", true},
+		{"[^b]at", "bat", false},
+		{"[^b]at", "cat", true},
 	}
 
 	for _, test := range data {
 		testName := fmt.Sprintf("%s-%s-%t", test.regexString, test.input, test.expected)
 		t.Run(testName, func(t *testing.T) {
+
 			if test.expected != Check(test.regexString, test.input) {
 				_ = fmt.Errorf("test %s failed", testName)
 				t.Fail()

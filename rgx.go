@@ -1,6 +1,22 @@
 package rgx
 
-import "fmt"
+import (
+	"fmt"
+	"math/rand"
+	"time"
+)
+
+var seededRand = rand.New(rand.NewSource(time.Now().UnixNano()))
+var charset = "abcdefghijklmnopqrstuvwxyz"
+
+// generates random name
+func name() string {
+	b := make([]byte, 4)
+	for i := range b {
+		b[i] = charset[seededRand.Intn(len(charset)-1)]
+	}
+	return string(b)
+}
 
 func toNfa(memory *context) *State {
 	token := memory.tokens[0]
@@ -17,12 +33,14 @@ func toNfa(memory *context) *State {
 	}
 
 	start := &State{
+		name: "start",
 		transitions: map[uint8][]*State{
 			0: {startState},
 		},
 	}
 
 	end := &State{
+		name:        "terminal",
 		transitions: map[uint8][]*State{},
 		terminal:    true,
 	}
@@ -36,10 +54,12 @@ func tokenToNfa(token regexToken) (*State, *State) {
 	if token.is(Construct) {
 		value := token.value.(uint8)
 		to := &State{
+			name:        name(),
 			transitions: map[uint8][]*State{},
 		}
 
 		from := &State{
+			name: name(),
 			transitions: map[uint8][]*State{
 				value: {to},
 			},
@@ -48,10 +68,12 @@ func tokenToNfa(token regexToken) (*State, *State) {
 		return from, to
 	} else if token.is(Wildcard) {
 		to := &State{
+			name:        name(),
 			transitions: map[uint8][]*State{},
 		}
 
 		from := &State{
+			name: name(),
 			transitions: map[uint8][]*State{
 				AnyChar: {to},
 			},
@@ -63,10 +85,12 @@ func tokenToNfa(token regexToken) (*State, *State) {
 		start, end := tokenToNfa(value)
 
 		to := &State{
+			name:        name(),
 			transitions: map[uint8][]*State{},
 		}
 
 		from := &State{
+			name: name(),
 			transitions: map[uint8][]*State{
 				0: {start, to},
 			},
@@ -80,10 +104,12 @@ func tokenToNfa(token regexToken) (*State, *State) {
 		start, end := tokenToNfa(value)
 
 		to := &State{
+			name:        name(),
 			transitions: map[uint8][]*State{},
 		}
 
 		from := &State{
+			name: name(),
 			transitions: map[uint8][]*State{
 				0: {start},
 			},
@@ -98,10 +124,12 @@ func tokenToNfa(token regexToken) (*State, *State) {
 		start2, end2 := tokenToNfa(values[1])
 
 		to := &State{
+			name:        name(),
 			transitions: map[uint8][]*State{},
 		}
 
 		from := &State{
+			name: name(),
 			transitions: map[uint8][]*State{
 				0: {start1, start2},
 			},
@@ -130,10 +158,12 @@ func tokenToNfa(token regexToken) (*State, *State) {
 		start, end := tokenToNfa(value)
 
 		to := &State{
+			name:        name(),
 			transitions: map[uint8][]*State{},
 		}
 
 		from := &State{
+			name: name(),
 			transitions: map[uint8][]*State{
 				0: {start, to},
 			},
@@ -146,20 +176,49 @@ func tokenToNfa(token regexToken) (*State, *State) {
 		constructTokens := token.value.([]regexToken)
 
 		from := &State{
+			name:        name(),
 			transitions: map[uint8][]*State{},
 		}
 
 		to := &State{
+			name:        name(),
 			transitions: map[uint8][]*State{},
 		}
 
-		var allStartStates []*State
 		for _, construct := range constructTokens {
-			start, end := tokenToNfa(construct)
-			allStartStates = append(allStartStates, start)
-			end.transitions[0] = append(end.transitions[0], to)
+			ch := construct.value.(uint8)
+			start := &State{
+				name: name(),
+				transitions: map[uint8][]*State{
+					0: {to},
+				},
+			}
+			from.transitions[ch] = []*State{start}
 		}
-		from.transitions[0] = allStartStates
+
+		return from, to
+	} else if token.is(BracketNot) {
+		constructTokens := token.value.([]regexToken)
+
+		from := &State{
+			name:        name(),
+			transitions: map[uint8][]*State{},
+		}
+
+		to := &State{
+			name:        name(),
+			transitions: map[uint8][]*State{},
+		}
+
+		for _, construct := range constructTokens {
+			ch := construct.value.(uint8)
+			start := &State{
+				name:        name(),
+				transitions: map[uint8][]*State{},
+			}
+			from.transitions[ch] = []*State{start}
+		}
+		from.transitions[AnyChar] = []*State{to}
 
 		return from, to
 	}
@@ -224,4 +283,25 @@ func (s *State) check(regex string, pos int) bool {
 	}
 
 	return false
+}
+
+// generates a dot graph
+func (s *State) dot(processedStateForDot map[string]bool) {
+	for char, states := range s.transitions {
+		var label string
+		if char == AnyChar {
+			label = "any"
+		} else if char == 0 {
+			label = "ε"
+		} else {
+			label = fmt.Sprintf("%c", char)
+		}
+		processedStateForDot[s.name] = true
+		for _, state := range states {
+			fmt.Printf("%s -> %s [label=%s]\n", s.name, state.name, label)
+			if _, ok := processedStateForDot[state.name]; !ok {
+				state.dot(processedStateForDot)
+			}
+		}
+	}
 }

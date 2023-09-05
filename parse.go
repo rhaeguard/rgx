@@ -9,6 +9,7 @@ const (
 	Optional                       = "optional"
 	Or                             = "or"
 	Bracket                        = "range"
+	BracketNot                     = "range_not"
 	Group                          = "group"
 	GroupUncaptured                = "group_uncaptured"
 	Wildcard                       = "wildcard"
@@ -86,6 +87,14 @@ func sliceContains(slice []string, element string) bool {
 
 func parseBracket(regexString string, memory *context) {
 	var pieces []string
+	var tokenType regexTokenType
+
+	if regexString[memory.loc()] == '^' {
+		tokenType = BracketNot
+		memory.adv()
+	} else {
+		tokenType = Bracket
+	}
 
 	for regexString[memory.loc()] != ']' {
 		ch := regexString[memory.loc()]
@@ -134,7 +143,7 @@ func parseBracket(regexString string, memory *context) {
 	}
 
 	token := regexToken{
-		tokenType: Bracket,
+		tokenType: tokenType,
 		value:     finalTokens,
 	}
 	memory.tokens = append(memory.tokens, token)
