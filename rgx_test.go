@@ -11,12 +11,12 @@ func TestCheck(t *testing.T) {
 		expected           bool
 	}{
 		// optionals
-		{"a?b?c?", "abc", true},
-		{"a?b?c?", "cd", false},
-		{"a?b?c?", "cdddd", false},
-		{"a?b?c?", "c", true},
-		{"a?b?c?", "bc", true},
-		{"a?b?c?", "", true},
+		{"a?b?c?$", "abc", true},
+		{"a?b?c?$", "cd", false},
+		{"a?b?c?$", "cdddd", false},
+		{"a?b?c?$", "c", true},
+		{"a?b?c?$", "bc", true},
+		{"a?b?c?$", "", true},
 		{"colou?r", "color", true},
 		{"colou?r", "colour", true},
 		// basic groups
@@ -26,11 +26,11 @@ func TestCheck(t *testing.T) {
 		// quantifiers
 		{"hel+o", "helo", true},
 		{"hel+o", "hellllllo", true},
-		{"hel+o", "helllllloooooo", false},
+		{"hel+o$", "helllllloooooo", false},
 		{"hel+o", "heo", false},
 		{"hel*o", "helo", true},
 		{"hel*o", "hellllllo", true},
-		{"hel*o", "helllllloooooo", false},
+		{"hel*o$", "helllllloooooo", false},
 		{"hel*o", "heo", true},
 		// quantifiers with groups
 		{"he(ya)*o", "heo", true},
@@ -92,7 +92,7 @@ func TestCheck(t *testing.T) {
 		{"(gray|gruy|grey)", "gruy", true},
 		{"(gray|gruy|grey)", "gray", true},
 		{"(gray|gruy|grey)", "grey", true},
-		{"(gray|gruy|grey)", "greyish", false},
+		{"(gray|gruy|grey)", "greyish", true},
 	}
 
 	for _, test := range data {
@@ -111,14 +111,21 @@ func TestCheckForDev(t *testing.T) {
 		regexString, input string
 		expected           bool
 	}{
-		{"[^b]at", "bat", false},
-		{"[^b]at", "cat", true},
+		// stuff
+		//{"dog$", "adog", true},
+		//{"dog", "adodoggo", true},
+		//{"a?b?c?$", "cd", false},
+		//{"(ha$|hi)", "ha", true},
+		{"(ha$|^hi)", "aha", true},
+		{"(ha$|^hi)", "hill", true},
+		{"(ha$|^hi)", "ahaa", false},
+		{"(ha$|^hi)", "ahii", false},
 	}
 
 	for _, test := range data {
 		testName := fmt.Sprintf("%s-%s-%t", test.regexString, test.input, test.expected)
 		t.Run(testName, func(t *testing.T) {
-
+			DumpDotGraphForRegex(test.regexString)
 			if test.expected != Check(test.regexString, test.input) {
 				_ = fmt.Errorf("test %s failed", testName)
 				t.Fail()

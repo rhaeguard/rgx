@@ -3,7 +3,7 @@ package rgx
 import "fmt"
 
 const (
-	Construct       regexTokenType = "construct"
+	Literal         regexTokenType = "literal"
 	NoneOrMore                     = "none_or_more"
 	OneOrMore                      = "one_or_more"
 	Optional                       = "optional"
@@ -13,6 +13,8 @@ const (
 	Group                          = "group"
 	GroupUncaptured                = "group_uncaptured"
 	Wildcard                       = "wildcard"
+	TextBeginning                  = "start_of_text"
+	TextEnd                        = "end_of_text"
 )
 
 type regexTokenType string
@@ -127,13 +129,13 @@ func parseBracket(regexString string, memory *context) {
 	for _, piece := range uniqueCharacterPieces {
 		if len(piece) == 1 {
 			finalTokens = append(finalTokens, regexToken{
-				tokenType: Construct,
+				tokenType: Literal,
 				value:     piece[0],
 			})
 		} else if len(piece) == 2 {
 			for s := piece[0]; s <= piece[1]; s++ {
 				finalTokens = append(finalTokens, regexToken{
-					tokenType: Construct,
+					tokenType: Literal,
 					value:     s,
 				})
 			}
@@ -211,7 +213,7 @@ func parseQuantifier(ch uint8, memory *context) {
 
 func parseAlphaNums(ch uint8, memory *context) {
 	token := regexToken{
-		tokenType: Construct,
+		tokenType: Literal,
 		value:     ch,
 	}
 	memory.push(token)
@@ -253,6 +255,18 @@ func processChar(regexString string, memory *context, ch uint8) {
 		token := regexToken{
 			tokenType: Or,
 			value:     []regexToken{left, right},
+		}
+		memory.push(token)
+	} else if ch == '^' || ch == '$' {
+		var tokenType = regexTokenType(TextBeginning)
+
+		if ch == '$' {
+			tokenType = TextEnd
+		}
+
+		token := regexToken{
+			tokenType: tokenType,
+			value:     ch,
 		}
 		memory.push(token)
 	}

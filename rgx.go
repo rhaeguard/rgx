@@ -21,6 +21,8 @@ func name() string {
 type State struct {
 	name        string
 	terminal    bool
+	endOfText   bool
+	startOfText bool
 	transitions map[uint8][]*State
 }
 
@@ -36,13 +38,13 @@ const (
 )
 
 func toNfa(memory *context) *State {
-	token := memory.tokens[0]
+	startFrom := 0
+	endAt := len(memory.tokens) - 1
+
+	token := memory.tokens[startFrom]
 	startState, endState := tokenToNfa(token)
 
-	for i := range memory.tokens {
-		if i == 0 {
-			continue
-		}
+	for i := startFrom + 1; i <= endAt; i++ {
 		startNext, endNext := tokenToNfa(memory.tokens[i])
 		endState.transitions[EpsilonChar] = append(endState.transitions[EpsilonChar], startNext)
 
@@ -68,7 +70,7 @@ func toNfa(memory *context) *State {
 }
 
 func tokenToNfa(token regexToken) (*State, *State) {
-	if token.is(Construct) {
+	if token.is(Literal) {
 		value := token.value.(uint8)
 		to := &State{
 			name:        name(),
@@ -238,6 +240,22 @@ func tokenToNfa(token regexToken) (*State, *State) {
 		from.transitions[AnyChar] = []*State{to}
 
 		return from, to
+	} else if token.is(TextBeginning) {
+		state := &State{
+			name:        name(),
+			startOfText: true,
+			transitions: map[uint8][]*State{},
+		}
+
+		return state, state
+	} else if token.is(TextEnd) {
+		state := &State{
+			name:        name(),
+			endOfText:   true,
+			transitions: map[uint8][]*State{},
+		}
+
+		return state, state
 	}
 
 	panic(fmt.Sprintf("unrecognized token type: %s", token.tokenType))
@@ -255,10 +273,18 @@ func getChar(input string, pos int) uint8 {
 	return StartOfText
 }
 
-func (s *State) check(inputString string, pos int) bool {
+func (s *State) check(inputString string, pos int, started bool) bool {
 	current := getChar(inputString, pos)
 
-	if current == EndOfText && s.terminal {
+	if s.endOfText && current != EndOfText {
+		return false
+	}
+
+	if s.startOfText && current != StartOfText {
+		return false
+	}
+
+	if s.terminal {
 		return true
 	}
 
@@ -272,7 +298,7 @@ func (s *State) check(inputString string, pos int) bool {
 
 	for i := range realTransitions {
 		state := realTransitions[i]
-		if state.check(inputString, pos+1) {
+		if state.check(inputString, pos+1, true) {
 			return true
 		}
 	}
@@ -280,9 +306,13 @@ func (s *State) check(inputString string, pos int) bool {
 	epsilonTransitions := s.transitions[EpsilonChar]
 	for i := range epsilonTransitions {
 		state := epsilonTransitions[i]
-		if state.check(inputString, pos) {
+		if state.check(inputString, pos, true) {
 			return true
 		}
+	}
+
+	if !started && pos+1 < len(inputString) {
+		return s.check(inputString, pos+1, false)
 	}
 
 	return false
@@ -299,7 +329,17 @@ func (s *State) dot(processedStateForDot map[string]bool) {
 		} else {
 			label = fmt.Sprintf("%c", char)
 		}
+
 		processedStateForDot[s.name] = true
+		fmt.Printf("%s [label=\"\"]\n", s.name)
+		if s.startOfText {
+			fmt.Printf("%s [color=red,style=filled]\n", s.name)
+		}
+
+		if s.endOfText {
+			fmt.Printf("%s [color=blue,style=filled]\n", s.name)
+		}
+
 		for _, state := range states {
 			fmt.Printf("%s -> %s [label=%s]\n", s.name, state.name, label)
 			if _, ok := processedStateForDot[state.name]; !ok {

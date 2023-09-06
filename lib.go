@@ -1,5 +1,7 @@
 package rgx
 
+import "fmt"
+
 func Check(regexString string, inputString string) bool {
 	memory := context{
 		pos:    0,
@@ -7,7 +9,8 @@ func Check(regexString string, inputString string) bool {
 	}
 	regex(regexString, &memory)
 	nfaEntry := toNfa(&memory)
-	return nfaEntry.check(inputString, -1)
+	fmt.Printf("%+v\n", nfaEntry)
+	return nfaEntry.check(inputString, -1, nfaEntry.startOfText)
 }
 
 func DumpDotGraphForRegex(regexString string) {
@@ -16,6 +19,11 @@ func DumpDotGraphForRegex(regexString string) {
 		tokens: []regexToken{},
 	}
 	regex(regexString, &memory)
+
+	for _, x := range memory.tokens {
+		fmt.Printf("%+v\n", x)
+	}
+
 	nfaEntry := toNfa(&memory)
 	nfaEntry.dot(map[string]bool{})
 }
