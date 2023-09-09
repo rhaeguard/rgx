@@ -2,24 +2,10 @@ package rgx
 
 import (
 	"fmt"
-	"math/rand"
-	"time"
 )
 
-var seededRand = rand.New(rand.NewSource(time.Now().UnixNano()))
-var charset = "abcdefghijklmnopqrstuvwxyz"
-
-// generates random name
-func name() string {
-	b := make([]byte, 4)
-	for i := range b {
-		b[i] = charset[seededRand.Intn(len(charset)-1)]
-	}
-	return string(b)
-}
-
 type State struct {
-	name        string
+	start       bool
 	terminal    bool
 	endOfText   bool
 	startOfText bool
@@ -48,14 +34,13 @@ func toNfa(memory *context) *State {
 	}
 
 	start := &State{
-		name: "start",
+		start: true,
 		transitions: map[uint8][]*State{
 			EpsilonChar: {startState},
 		},
 	}
 
 	end := &State{
-		name:        "terminal",
 		transitions: map[uint8][]*State{},
 		terminal:    true,
 	}
@@ -69,12 +54,10 @@ func tokenToNfa(token regexToken) (*State, *State) {
 	if token.is(Literal) {
 		value := token.value.(uint8)
 		to := &State{
-			name:        name(),
 			transitions: map[uint8][]*State{},
 		}
 
 		from := &State{
-			name: name(),
 			transitions: map[uint8][]*State{
 				value: {to},
 			},
@@ -83,12 +66,10 @@ func tokenToNfa(token regexToken) (*State, *State) {
 		return from, to
 	} else if token.is(Wildcard) {
 		to := &State{
-			name:        name(),
 			transitions: map[uint8][]*State{},
 		}
 
 		from := &State{
-			name: name(),
 			transitions: map[uint8][]*State{
 				AnyChar: {to},
 			},
@@ -100,12 +81,10 @@ func tokenToNfa(token regexToken) (*State, *State) {
 		start, end := tokenToNfa(value)
 
 		to := &State{
-			name:        name(),
 			transitions: map[uint8][]*State{},
 		}
 
 		from := &State{
-			name: name(),
 			transitions: map[uint8][]*State{
 				EpsilonChar: {start, to},
 			},
@@ -119,12 +98,10 @@ func tokenToNfa(token regexToken) (*State, *State) {
 		start, end := tokenToNfa(value)
 
 		to := &State{
-			name:        name(),
 			transitions: map[uint8][]*State{},
 		}
 
 		from := &State{
-			name: name(),
 			transitions: map[uint8][]*State{
 				EpsilonChar: {start},
 			},
@@ -139,12 +116,10 @@ func tokenToNfa(token regexToken) (*State, *State) {
 		start2, end2 := tokenToNfa(values[1])
 
 		to := &State{
-			name:        name(),
 			transitions: map[uint8][]*State{},
 		}
 
 		from := &State{
-			name: name(),
 			transitions: map[uint8][]*State{
 				EpsilonChar: {start1, start2},
 			},
@@ -173,12 +148,10 @@ func tokenToNfa(token regexToken) (*State, *State) {
 		start, end := tokenToNfa(value)
 
 		to := &State{
-			name:        name(),
 			transitions: map[uint8][]*State{},
 		}
 
 		from := &State{
-			name: name(),
 			transitions: map[uint8][]*State{
 				EpsilonChar: {start, to},
 			},
@@ -191,19 +164,16 @@ func tokenToNfa(token regexToken) (*State, *State) {
 		constructTokens := token.value.([]regexToken)
 
 		from := &State{
-			name:        name(),
 			transitions: map[uint8][]*State{},
 		}
 
 		to := &State{
-			name:        name(),
 			transitions: map[uint8][]*State{},
 		}
 
 		for _, construct := range constructTokens {
 			ch := construct.value.(uint8)
 			start := &State{
-				name: name(),
 				transitions: map[uint8][]*State{
 					EpsilonChar: {to},
 				},
@@ -216,19 +186,16 @@ func tokenToNfa(token regexToken) (*State, *State) {
 		constructTokens := token.value.([]regexToken)
 
 		from := &State{
-			name:        name(),
 			transitions: map[uint8][]*State{},
 		}
 
 		to := &State{
-			name:        name(),
 			transitions: map[uint8][]*State{},
 		}
 
 		for _, construct := range constructTokens {
 			ch := construct.value.(uint8)
 			start := &State{
-				name:        name(),
 				transitions: map[uint8][]*State{},
 			}
 			from.transitions[ch] = []*State{start}
@@ -238,7 +205,6 @@ func tokenToNfa(token regexToken) (*State, *State) {
 		return from, to
 	} else if token.is(TextBeginning) {
 		state := &State{
-			name:        name(),
 			startOfText: true,
 			transitions: map[uint8][]*State{},
 		}
@@ -246,7 +212,6 @@ func tokenToNfa(token regexToken) (*State, *State) {
 		return state, state
 	} else if token.is(TextEnd) {
 		state := &State{
-			name:        name(),
 			endOfText:   true,
 			transitions: map[uint8][]*State{},
 		}
@@ -254,5 +219,5 @@ func tokenToNfa(token regexToken) (*State, *State) {
 		return state, state
 	}
 
-	panic(fmt.Sprintf("unrecognized token type: %s", token.tokenType))
+	panic(fmt.Sprintf("unrecognized token: %+v", token))
 }

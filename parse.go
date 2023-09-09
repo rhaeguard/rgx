@@ -2,22 +2,22 @@ package rgx
 
 import "fmt"
 
-const (
-	Literal         regexTokenType = "literal"
-	NoneOrMore                     = "none_or_more"
-	OneOrMore                      = "one_or_more"
-	Optional                       = "optional"
-	Or                             = "or"
-	Bracket                        = "range"
-	BracketNot                     = "range_not"
-	Group                          = "group"
-	GroupUncaptured                = "group_uncaptured"
-	Wildcard                       = "wildcard"
-	TextBeginning                  = "start_of_text"
-	TextEnd                        = "end_of_text"
-)
+type regexTokenType uint8
 
-type regexTokenType string
+const (
+	Literal         regexTokenType = iota
+	NoneOrMore                     = iota
+	OneOrMore                      = iota
+	Optional                       = iota
+	Or                             = iota
+	Bracket                        = iota
+	BracketNot                     = iota
+	Group                          = iota
+	GroupUncaptured                = iota
+	Wildcard                       = iota
+	TextBeginning                  = iota
+	TextEnd                        = iota
+)
 
 type regexToken struct {
 	tokenType regexTokenType

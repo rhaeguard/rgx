@@ -69,13 +69,3 @@ func Check(regexString string, inputString string) bool {
 	fmt.Printf("%+v\n", nfaEntry)
 	return nfaEntry.check(inputString, -1, nfaEntry.startOfText)
 }
-
-func DumpDotGraphForRegex(regexString string) {
-	memory := context{
-		pos:    0,
-		tokens: []regexToken{},
-	}
-	regex(regexString, &memory)
-	nfaEntry := toNfa(&memory)
-	dot(nfaEntry, map[string]bool{})
-}
