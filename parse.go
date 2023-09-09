@@ -74,8 +74,15 @@ func isDot(ch uint8) bool {
 	return ch == '.'
 }
 
+var quantifiers = map[uint8]regexTokenType{
+	'*': NoneOrMore,
+	'+': OneOrMore,
+	'?': Optional,
+}
+
 func isQuantifier(ch uint8) bool {
-	return ch == '*' || ch == '?' || ch == '+'
+	_, ok := quantifiers[ch]
+	return ok
 }
 
 func sliceContains(slice []string, element string) bool {
@@ -194,12 +201,6 @@ func parseGroupUncaptured(regexString string, memory *context) {
 	} else if regexString[groupContext.loc()] == ')' {
 		memory.advTo(groupContext.loc() - 1) // advance but do not consume the closing parenthesis
 	}
-}
-
-var quantifiers = map[uint8]regexTokenType{
-	'*': NoneOrMore,
-	'+': OneOrMore,
-	'?': Optional,
 }
 
 func parseQuantifier(ch uint8, memory *context) {

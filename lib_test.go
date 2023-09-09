@@ -93,6 +93,11 @@ func TestCheck(t *testing.T) {
 		{"(gray|gruy|grey)", "gray", true},
 		{"(gray|gruy|grey)", "grey", true},
 		{"(gray|gruy|grey)", "greyish", true},
+		// start and end of string
+		{"(ha$|^hi)", "aha", true},
+		{"(ha$|^hi)", "hill", true},
+		{"(ha$|^hi)", "ahaa", false},
+		{"(ha$|^hi)", "ahii", false},
 	}
 
 	for _, test := range data {
