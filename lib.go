@@ -14,14 +14,28 @@ func getChar(input string, pos int) uint8 {
 	return StartOfText
 }
 
-func (s *State) check(inputString string, pos int, started bool) bool {
-	current := getChar(inputString, pos)
+func (s *State) nextStateWith(ch uint8) *State {
+	states := s.transitions[ch]
 
-	if s.endOfText && current != EndOfText {
+	size := len(states)
+
+	if size == 0 {
+		return nil
+	} else if size == 1 {
+		return states[0]
+	}
+
+	panic(fmt.Sprintf("There must be at most 1 transition, found %d", size))
+}
+
+func (s *State) check(inputString string, pos int, started bool) bool {
+	currentChar := getChar(inputString, pos)
+
+	if s.endOfText && currentChar != EndOfText {
 		return false
 	}
 
-	if s.startOfText && current != StartOfText {
+	if s.startOfText && currentChar != StartOfText {
 		return false
 	}
 
@@ -29,25 +43,25 @@ func (s *State) check(inputString string, pos int, started bool) bool {
 		return true
 	}
 
-	realTransitions := s.transitions[current]
-
+	nextState := s.nextStateWith(currentChar)
 	// if there are no transitions for the current char as is
 	// then see if there's a transition for any char, i.e. dot (.) sign
-	if len(realTransitions) == 0 && current != EndOfText {
-		realTransitions = s.transitions[AnyChar]
+	if nextState == nil && currentChar != EndOfText {
+		nextState = s.nextStateWith(AnyChar)
 	}
 
-	for i := range realTransitions {
-		state := realTransitions[i]
-		if state.check(inputString, pos+1, true) {
-			return true
-		}
+	if nextState != nil && nextState.check(inputString, pos+1, true) {
+		return true
 	}
 
 	epsilonTransitions := s.transitions[EpsilonChar]
 	for i := range epsilonTransitions {
 		state := epsilonTransitions[i]
 		if state.check(inputString, pos, true) {
+			return true
+		}
+		// if we're at the start of the text, we should try progressing
+		if currentChar == StartOfText && state.check(inputString, pos+1, true) {
 			return true
 		}
 	}
@@ -66,6 +80,5 @@ func Check(regexString string, inputString string) bool {
 	}
 	regex(regexString, &memory)
 	nfaEntry := toNfa(&memory)
-	fmt.Printf("%+v\n", nfaEntry)
 	return nfaEntry.check(inputString, -1, nfaEntry.startOfText)
 }

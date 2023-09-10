@@ -17,6 +17,7 @@ func TestCheck(t *testing.T) {
 		{"a?b?c?$", "c", true},
 		{"a?b?c?$", "bc", true},
 		{"a?b?c?$", "", true},
+		{"^a?b?c?", "", true},
 		{"colou?r", "color", true},
 		{"colou?r", "colour", true},
 		// basic groups
@@ -121,8 +122,8 @@ func TestCheckForDev(t *testing.T) {
 		//{"dog", "adodoggo", true},
 		//{"a?b?c?$", "cd", false},
 		//{"(ha$|hi)", "ha", true},
-		{"(ha$|^hi)", "aha", true},
-		//{"(ha$|^hi)", "hill", true},
+		//{"(ha$|^hi)", "aha", true},
+		{"(ha$|^hi)", "hill", true},
 		//{"(ha$|^hi)", "ahaa", false},
 		//{"(ha$|^hi)", "ahii", false},
 	}

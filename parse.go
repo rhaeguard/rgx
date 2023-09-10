@@ -5,18 +5,18 @@ import "fmt"
 type regexTokenType uint8
 
 const (
-	Literal         regexTokenType = iota
-	NoneOrMore                     = iota
-	OneOrMore                      = iota
-	Optional                       = iota
-	Or                             = iota
-	Bracket                        = iota
-	BracketNot                     = iota
-	Group                          = iota
-	GroupUncaptured                = iota
-	Wildcard                       = iota
-	TextBeginning                  = iota
-	TextEnd                        = iota
+	Literal         regexTokenType = iota // any literal character, e.g., a, b, 1, 2, etc.
+	NoneOrMore                     = iota // *
+	OneOrMore                      = iota // +
+	Optional                       = iota // ?
+	Or                             = iota // |
+	Bracket                        = iota // []
+	BracketNot                     = iota // [^]
+	Group                          = iota // ()
+	GroupUncaptured                = iota // logical group
+	Wildcard                       = iota // .
+	TextBeginning                  = iota // ^
+	TextEnd                        = iota // $
 )
 
 type regexToken struct {
@@ -83,15 +83,6 @@ var quantifiers = map[uint8]regexTokenType{
 func isQuantifier(ch uint8) bool {
 	_, ok := quantifiers[ch]
 	return ok
-}
-
-func sliceContains(slice []string, element string) bool {
-	for _, el := range slice {
-		if el == element {
-			return true
-		}
-	}
-	return false
 }
 
 func parseBracket(regexString string, memory *context) {
