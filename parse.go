@@ -28,33 +28,33 @@ func (t regexToken) is(_type regexTokenType) bool {
 	return t.tokenType == _type
 }
 
-type context struct {
+type parsingContext struct {
 	pos    int
 	tokens []regexToken
 }
 
-func (p *context) loc() int {
+func (p *parsingContext) loc() int {
 	return p.pos
 }
 
-func (p *context) adv() int {
+func (p *parsingContext) adv() int {
 	p.pos += 1
 	return p.pos
 }
 
-func (p *context) advTo(pos int) {
+func (p *parsingContext) advTo(pos int) {
 	p.pos = pos
 }
 
-func (p *context) push(token regexToken) {
+func (p *parsingContext) push(token regexToken) {
 	p.tokens = append(p.tokens, token)
 }
 
-func (p *context) getLast(count int) []regexToken {
+func (p *parsingContext) getLast(count int) []regexToken {
 	return p.tokens[len(p.tokens)-count:]
 }
 
-func (p *context) removeLast(count int) {
+func (p *parsingContext) removeLast(count int) {
 	p.tokens = append([]regexToken{}, p.tokens[:len(p.tokens)-count]...)
 }
 
@@ -85,7 +85,7 @@ func isQuantifier(ch uint8) bool {
 	return ok
 }
 
-func parseBracket(regexString string, memory *context) {
+func parseBracket(regexString string, memory *parsingContext) {
 	var pieces []string
 	var tokenType regexTokenType
 
@@ -149,8 +149,8 @@ func parseBracket(regexString string, memory *context) {
 	memory.tokens = append(memory.tokens, token)
 }
 
-func parseGroup(regexString string, memory *context) {
-	groupContext := context{
+func parseGroup(regexString string, memory *parsingContext) {
+	groupContext := parsingContext{
 		pos:    memory.loc(),
 		tokens: []regexToken{},
 	}
@@ -169,8 +169,8 @@ func parseGroup(regexString string, memory *context) {
 	memory.advTo(groupContext.loc())
 }
 
-func parseGroupUncaptured(regexString string, memory *context) {
-	groupContext := context{
+func parseGroupUncaptured(regexString string, memory *parsingContext) {
+	groupContext := parsingContext{
 		pos:    memory.loc(),
 		tokens: []regexToken{},
 	}
@@ -194,7 +194,7 @@ func parseGroupUncaptured(regexString string, memory *context) {
 	}
 }
 
-func parseQuantifier(ch uint8, memory *context) {
+func parseQuantifier(ch uint8, memory *parsingContext) {
 	token := regexToken{
 		tokenType: quantifiers[ch],
 		value:     memory.getLast(1),
@@ -203,7 +203,7 @@ func parseQuantifier(ch uint8, memory *context) {
 	memory.push(token)
 }
 
-func parseAlphaNums(ch uint8, memory *context) {
+func parseAlphaNums(ch uint8, memory *parsingContext) {
 	token := regexToken{
 		tokenType: Literal,
 		value:     ch,
@@ -211,7 +211,7 @@ func parseAlphaNums(ch uint8, memory *context) {
 	memory.push(token)
 }
 
-func processChar(regexString string, memory *context, ch uint8) {
+func processChar(regexString string, memory *parsingContext, ch uint8) {
 	if ch == '(' {
 		memory.adv()
 		parseGroup(regexString, memory)
@@ -229,7 +229,7 @@ func processChar(regexString string, memory *context, ch uint8) {
 		}
 		memory.push(token)
 	} else if ch == '|' {
-		// everything to the left of the pipe in this specific "context"
+		// everything to the left of the pipe in this specific "parsingContext"
 		// is considered as the left side of the OR
 		left := regexToken{
 			tokenType: GroupUncaptured,
@@ -264,7 +264,7 @@ func processChar(regexString string, memory *context, ch uint8) {
 	}
 }
 
-func regex(regexString string, memory *context) {
+func regex(regexString string, memory *parsingContext) {
 	for memory.loc() < len(regexString) {
 		ch := regexString[memory.loc()]
 		processChar(regexString, memory, ch)

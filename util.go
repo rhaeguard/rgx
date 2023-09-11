@@ -16,7 +16,7 @@ func sliceContains(slice []string, element string) bool {
 }
 
 func DumpDotGraphForRegex(regexString string) {
-	memory := context{
+	memory := parsingContext{
 		pos:    0,
 		tokens: []regexToken{},
 	}

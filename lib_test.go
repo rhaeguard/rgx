@@ -123,9 +123,10 @@ func TestCheckForDev(t *testing.T) {
 		//{"a?b?c?$", "cd", false},
 		//{"(ha$|hi)", "ha", true},
 		//{"(ha$|^hi)", "aha", true},
-		{"(ha$|^hi)", "hill", true},
+		//{"(ha$|^hi)", "hill", true},
 		//{"(ha$|^hi)", "ahaa", false},
 		//{"(ha$|^hi)", "ahii", false},
+		{"((gray|gruy)|grey)", "grey", true},
 	}
 
 	for _, test := range data {

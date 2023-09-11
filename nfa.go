@@ -19,7 +19,7 @@ const (
 	EpsilonChar = 0 // ascii: null char
 )
 
-func toNfa(memory *context) *State {
+func toNfa(memory *parsingContext) *State {
 	startFrom := 0
 	endAt := len(memory.tokens) - 1
 

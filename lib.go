@@ -74,7 +74,7 @@ func (s *State) check(inputString string, pos int, started bool) bool {
 }
 
 func Check(regexString string, inputString string) bool {
-	memory := context{
+	memory := parsingContext{
 		pos:    0,
 		tokens: []regexToken{},
 	}
