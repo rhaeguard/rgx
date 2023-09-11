@@ -6,5 +6,6 @@ These are the resources I've consulted while writing the code
 - https://blog.cernera.me/converting-regular-expressions-to-postfix-notation-with-the-shunting-yard-algorithm/
 - https://gobyexample.com/
 - https://regex101.com/
+- https://en.wikipedia.org/wiki/Thompson%27s_construction
 
 While my own implementation isn't using the techniques described in above resources, it's still a good idea to take a look at them.
