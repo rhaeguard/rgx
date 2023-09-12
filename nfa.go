@@ -51,7 +51,8 @@ func toNfa(memory *parsingContext) *State {
 }
 
 func tokenToNfa(token regexToken) (*State, *State) {
-	if token.is(Literal) {
+	switch token.tokenType {
+	case Literal:
 		value := token.value.(uint8)
 		to := &State{
 			transitions: map[uint8][]*State{},
@@ -64,7 +65,7 @@ func tokenToNfa(token regexToken) (*State, *State) {
 		}
 
 		return from, to
-	} else if token.is(Wildcard) {
+	case Wildcard:
 		to := &State{
 			transitions: map[uint8][]*State{},
 		}
@@ -76,7 +77,7 @@ func tokenToNfa(token regexToken) (*State, *State) {
 		}
 
 		return from, to
-	} else if token.is(NoneOrMore) {
+	case NoneOrMore:
 		value := token.value.([]regexToken)[0]
 		start, end := tokenToNfa(value)
 
@@ -93,7 +94,7 @@ func tokenToNfa(token regexToken) (*State, *State) {
 		end.transitions[EpsilonChar] = append(end.transitions[EpsilonChar], to, start)
 
 		return from, to
-	} else if token.is(OneOrMore) {
+	case OneOrMore:
 		value := token.value.([]regexToken)[0]
 		start, end := tokenToNfa(value)
 
@@ -110,7 +111,7 @@ func tokenToNfa(token regexToken) (*State, *State) {
 		end.transitions[EpsilonChar] = append(end.transitions[EpsilonChar], to, start)
 
 		return from, to
-	} else if token.is(Or) {
+	case Or:
 		values := token.value.([]regexToken)
 		start1, end1 := tokenToNfa(values[0])
 		start2, end2 := tokenToNfa(values[1])
@@ -129,21 +130,19 @@ func tokenToNfa(token regexToken) (*State, *State) {
 		end2.transitions[EpsilonChar] = append(end2.transitions[EpsilonChar], to)
 
 		return from, to
-	} else if token.is(Group) || token.is(GroupUncaptured) {
+	case Group, GroupUncaptured:
 		values := token.value.([]regexToken)
 		start, end := tokenToNfa(values[0])
 
-		i := 1
-		for i < len(values) {
+		for i := 1; i < len(values); i++ {
 			startNext, endNext := tokenToNfa(values[i])
 			end.transitions[EpsilonChar] = append(end.transitions[EpsilonChar], startNext)
 
 			end = endNext
-			i++
 		}
 
 		return start, end
-	} else if token.is(Optional) {
+	case Optional:
 		value := token.value.([]regexToken)[0]
 		start, end := tokenToNfa(value)
 
@@ -160,7 +159,7 @@ func tokenToNfa(token regexToken) (*State, *State) {
 		end.transitions[EpsilonChar] = append(end.transitions[EpsilonChar], to)
 
 		return from, to
-	} else if token.is(Bracket) {
+	case Bracket:
 		constructTokens := token.value.([]regexToken)
 
 		from := &State{
@@ -182,7 +181,7 @@ func tokenToNfa(token regexToken) (*State, *State) {
 		}
 
 		return from, to
-	} else if token.is(BracketNot) {
+	case BracketNot:
 		constructTokens := token.value.([]regexToken)
 
 		from := &State{
@@ -203,21 +202,21 @@ func tokenToNfa(token regexToken) (*State, *State) {
 		from.transitions[AnyChar] = []*State{to}
 
 		return from, to
-	} else if token.is(TextBeginning) {
+	case TextBeginning:
 		state := &State{
 			startOfText: true,
 			transitions: map[uint8][]*State{},
 		}
 
 		return state, state
-	} else if token.is(TextEnd) {
+	case TextEnd:
 		state := &State{
 			endOfText:   true,
 			transitions: map[uint8][]*State{},
 		}
 
 		return state, state
+	default:
+		panic(fmt.Sprintf("unrecognized token: %+v", token))
 	}
-
-	panic(fmt.Sprintf("unrecognized token: %+v", token))
 }

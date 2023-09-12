@@ -24,10 +24,6 @@ type regexToken struct {
 	value     interface{}
 }
 
-func (t regexToken) is(_type regexTokenType) bool {
-	return t.tokenType == _type
-}
-
 type parsingContext struct {
 	pos    int
 	tokens []regexToken
