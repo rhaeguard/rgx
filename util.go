@@ -68,7 +68,7 @@ func dot(s *State, processedStateForDot map[string]bool) {
 		} else if char == EpsilonChar {
 			label = "ε"
 		} else {
-			label = fmt.Sprintf("%c", char)
+			label = fmt.Sprintf("\"%c\"", char)
 		}
 
 		for _, state := range states {

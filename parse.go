@@ -72,6 +72,38 @@ func isNumeric(ch uint8) bool {
 	return ch >= '0' && ch <= '9'
 }
 
+var specialChars = map[uint8]bool{
+	'&': true,
+	'*': true,
+	' ': true,
+	'{': true,
+	'}': true,
+	'[': true,
+	']': true,
+	'(': true,
+	')': true,
+	',': true,
+	'=': true,
+	'-': true,
+	//'.':  true,
+	'+':  true,
+	';':  true,
+	'\'': true,
+	'/':  true,
+}
+
+func isSpecialChar(ch uint8) bool {
+	_, ok := specialChars[ch]
+	return ok
+}
+
+func isLiteral(ch uint8) bool {
+	return isAlphabetUppercase(ch) ||
+		isAlphabetLowercase(ch) ||
+		isNumeric(ch) ||
+		isSpecialChar(ch)
+}
+
 func isDot(ch uint8) bool {
 	return ch == '.'
 }
@@ -205,7 +237,7 @@ func parseQuantifier(ch uint8, memory *parsingContext) {
 	memory.push(token)
 }
 
-func parseAlphaNums(ch uint8, memory *parsingContext) {
+func parseLiteral(ch uint8, memory *parsingContext) {
 	token := regexToken{
 		tokenType: Literal,
 		value:     ch,
@@ -222,8 +254,8 @@ func processChar(regexString string, memory *parsingContext, ch uint8) {
 		parseBracket(regexString, memory)
 	} else if isQuantifier(ch) {
 		parseQuantifier(ch, memory)
-	} else if isAlphabetUppercase(ch) || isAlphabetLowercase(ch) || isNumeric(ch) {
-		parseAlphaNums(ch, memory)
+	} else if isLiteral(ch) {
+		parseLiteral(ch, memory)
 	} else if isDot(ch) {
 		token := regexToken{
 			tokenType: Wildcard,

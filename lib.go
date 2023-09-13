@@ -30,14 +30,14 @@ func (s *State) nextStateWith(ch uint8) *State {
 
 func (s *State) check(inputString string, pos int, started bool, ctx *regexCheckContext) bool {
 	if s.group != nil && s.group.start {
-		ctx.activeGroups[s.group.name] = &capture{
+		ctx.groups[s.group.name] = &capture{
 			start: pos,
 			end:   -1,
 		} // start the group
 	}
 
 	if s.group != nil && s.group.end {
-		ctx.activeGroups[s.group.name].end = pos
+		ctx.groups[s.group.name].end = pos
 	}
 
 	currentChar := getChar(inputString, pos)
@@ -85,21 +85,26 @@ func (s *State) check(inputString string, pos int, started bool, ctx *regexCheck
 }
 
 func Check(regexString string, inputString string) Result {
-	memory := parsingContext{
+	parseContext := parsingContext{
 		pos:    0,
 		tokens: []regexToken{},
 	}
-	regex(regexString, &memory)
-	nfaEntry := toNfa(&memory)
+	regex(regexString, &parseContext)
+	nfaEntry := toNfa(&parseContext)
+
 	checkContext := &regexCheckContext{
-		activeGroups: map[string]*capture{},
+		groups: map[string]*capture{},
 	}
 	result := nfaEntry.check(inputString, -1, nfaEntry.startOfText, checkContext)
 
+	// prepare the result
 	groups := map[string]string{}
 
-	for group, captured := range checkContext.activeGroups {
-		groups[group] = captured.string(inputString)
+	if result {
+		// extract strings from the groups
+		for group, captured := range checkContext.groups {
+			groups[group] = captured.string(inputString)
+		}
 	}
 
 	return Result{
@@ -126,7 +131,7 @@ func (c *capture) string(inputString string) string {
 		s = 0
 	}
 
-	if e > len(inputString) {
+	if e > len(inputString) || e == -1 {
 		e = len(inputString)
 	}
 
@@ -134,5 +139,5 @@ func (c *capture) string(inputString string) string {
 }
 
 type regexCheckContext struct {
-	activeGroups map[string]*capture
+	groups map[string]*capture
 }

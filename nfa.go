@@ -45,11 +45,21 @@ func toNfa(memory *parsingContext) *State {
 		transitions: map[uint8][]*State{
 			EpsilonChar: {startState},
 		},
+		group: &group{
+			name:  "0",
+			start: true,
+			end:   false,
+		},
 	}
 
 	end := &State{
 		transitions: map[uint8][]*State{},
 		terminal:    true,
+		group: &group{
+			name:  "0",
+			start: false,
+			end:   true,
+		},
 	}
 
 	endState.transitions[EpsilonChar] = append(endState.transitions[EpsilonChar], end)
@@ -215,12 +225,7 @@ func tokenToNfa(token regexToken, memory *parsingContext) (*State, *State) {
 
 		for _, construct := range constructTokens {
 			ch := construct.value.(uint8)
-			start := &State{
-				transitions: map[uint8][]*State{
-					EpsilonChar: {to},
-				},
-			}
-			from.transitions[ch] = []*State{start}
+			from.transitions[ch] = []*State{to}
 		}
 
 		return from, to
@@ -235,12 +240,13 @@ func tokenToNfa(token regexToken, memory *parsingContext) (*State, *State) {
 			transitions: map[uint8][]*State{},
 		}
 
+		deadEnd := &State{
+			transitions: map[uint8][]*State{},
+		}
+
 		for _, construct := range constructTokens {
 			ch := construct.value.(uint8)
-			start := &State{
-				transitions: map[uint8][]*State{},
-			}
-			from.transitions[ch] = []*State{start}
+			from.transitions[ch] = []*State{deadEnd}
 		}
 		from.transitions[AnyChar] = []*State{to}
 
