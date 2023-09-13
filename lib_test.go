@@ -104,7 +104,7 @@ func TestCheck(t *testing.T) {
 	for _, test := range data {
 		testName := fmt.Sprintf("%s-%s-%t", test.regexString, test.input, test.expected)
 		t.Run(testName, func(t *testing.T) {
-			if test.expected != Check(test.regexString, test.input) {
+			if test.expected != Check(test.regexString, test.input).matches {
 				_ = fmt.Errorf("test %s failed", testName)
 				t.Fail()
 			}
@@ -117,23 +117,17 @@ func TestCheckForDev(t *testing.T) {
 		regexString, input string
 		expected           bool
 	}{
-		// stuff
-		//{"dog$", "adog", true},
-		//{"dog", "adodoggo", true},
-		//{"a?b?c?$", "cd", false},
-		//{"(ha$|hi)", "ha", true},
-		//{"(ha$|^hi)", "aha", true},
-		//{"(ha$|^hi)", "hill", true},
-		//{"(ha$|^hi)", "ahaa", false},
-		//{"(ha$|^hi)", "ahii", false},
-		{"((gray|gruy)|grey)", "grey", true},
+		//{"hey(cat|dog)hi", "heycathi", true},
+		//{"a([bc]*)(c*d)", "abd", true},
+		{"hi(nameis([a-c]+))bye", "hinameisaabbccbye", true},
 	}
 
 	for _, test := range data {
 		testName := fmt.Sprintf("%s-%s-%t", test.regexString, test.input, test.expected)
 		t.Run(testName, func(t *testing.T) {
-			DumpDotGraphForRegex(test.regexString)
-			if test.expected != Check(test.regexString, test.input) {
+			//DumpDotGraphForRegex(test.regexString)
+			result := Check(test.regexString, test.input)
+			if test.expected != result.matches {
 				_ = fmt.Errorf("test %s failed", testName)
 				t.Fail()
 			}

@@ -25,12 +25,18 @@ type regexToken struct {
 }
 
 type parsingContext struct {
-	pos    int
-	tokens []regexToken
+	pos          int
+	tokens       []regexToken
+	groupCounter uint8
 }
 
 func (p *parsingContext) loc() int {
 	return p.pos
+}
+
+func (p *parsingContext) nextGroup() uint8 {
+	p.groupCounter++
+	return p.groupCounter
 }
 
 func (p *parsingContext) adv() int {

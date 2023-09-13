@@ -34,7 +34,15 @@ func dot(s *State, processedStateForDot map[string]bool) {
 	processedStateForDot[thisStateName] = true
 
 	if !s.start || !s.terminal {
-		fmt.Printf("%s [label=\"\"]\n", thisStateName)
+		if s.group != nil {
+			if s.group.start {
+				fmt.Printf("%s [label=\"[%s\"]\n", thisStateName, s.group.name)
+			} else {
+				fmt.Printf("%s [label=\"%s]\"]\n", thisStateName, s.group.name)
+			}
+		} else {
+			fmt.Printf("%s [label=\"\"]\n", thisStateName)
+		}
 	}
 
 	if s.start {

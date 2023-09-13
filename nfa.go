@@ -4,12 +4,19 @@ import (
 	"fmt"
 )
 
+type group struct {
+	name  string
+	start bool
+	end   bool
+}
+
 type State struct {
 	start       bool
 	terminal    bool
 	endOfText   bool
 	startOfText bool
 	transitions map[uint8][]*State
+	group       *group
 }
 
 const (
@@ -24,10 +31,10 @@ func toNfa(memory *parsingContext) *State {
 	endAt := len(memory.tokens) - 1
 
 	token := memory.tokens[startFrom]
-	startState, endState := tokenToNfa(token)
+	startState, endState := tokenToNfa(token, memory)
 
 	for i := startFrom + 1; i <= endAt; i++ {
-		startNext, endNext := tokenToNfa(memory.tokens[i])
+		startNext, endNext := tokenToNfa(memory.tokens[i], memory)
 		endState.transitions[EpsilonChar] = append(endState.transitions[EpsilonChar], startNext)
 
 		endState = endNext
@@ -50,7 +57,7 @@ func toNfa(memory *parsingContext) *State {
 	return start
 }
 
-func tokenToNfa(token regexToken) (*State, *State) {
+func tokenToNfa(token regexToken, memory *parsingContext) (*State, *State) {
 	switch token.tokenType {
 	case Literal:
 		value := token.value.(uint8)
@@ -79,7 +86,7 @@ func tokenToNfa(token regexToken) (*State, *State) {
 		return from, to
 	case NoneOrMore:
 		value := token.value.([]regexToken)[0]
-		start, end := tokenToNfa(value)
+		start, end := tokenToNfa(value, memory)
 
 		to := &State{
 			transitions: map[uint8][]*State{},
@@ -96,7 +103,7 @@ func tokenToNfa(token regexToken) (*State, *State) {
 		return from, to
 	case OneOrMore:
 		value := token.value.([]regexToken)[0]
-		start, end := tokenToNfa(value)
+		start, end := tokenToNfa(value, memory)
 
 		to := &State{
 			transitions: map[uint8][]*State{},
@@ -113,8 +120,8 @@ func tokenToNfa(token regexToken) (*State, *State) {
 		return from, to
 	case Or:
 		values := token.value.([]regexToken)
-		start1, end1 := tokenToNfa(values[0])
-		start2, end2 := tokenToNfa(values[1])
+		start1, end1 := tokenToNfa(values[0], memory)
+		start2, end2 := tokenToNfa(values[1], memory)
 
 		to := &State{
 			transitions: map[uint8][]*State{},
@@ -130,12 +137,48 @@ func tokenToNfa(token regexToken) (*State, *State) {
 		end2.transitions[EpsilonChar] = append(end2.transitions[EpsilonChar], to)
 
 		return from, to
-	case Group, GroupUncaptured:
+	case Group:
 		values := token.value.([]regexToken)
-		start, end := tokenToNfa(values[0])
+
+		groupName := fmt.Sprintf("%d", memory.nextGroup())
+
+		start, end := tokenToNfa(values[0], memory)
 
 		for i := 1; i < len(values); i++ {
-			startNext, endNext := tokenToNfa(values[i])
+			startNext, endNext := tokenToNfa(values[i], memory)
+			end.transitions[EpsilonChar] = append(end.transitions[EpsilonChar], startNext)
+
+			end = endNext
+		}
+
+		from := &State{
+			transitions: map[uint8][]*State{
+				EpsilonChar: {start},
+			},
+			group: &group{
+				name:  groupName,
+				start: true,
+			},
+		}
+
+		to := &State{
+			transitions: map[uint8][]*State{},
+			group: &group{
+				name: groupName,
+				end:  true,
+			},
+		}
+
+		end.transitions[EpsilonChar] = append(end.transitions[EpsilonChar], to)
+
+		return from, to
+	case GroupUncaptured:
+		values := token.value.([]regexToken)
+
+		start, end := tokenToNfa(values[0], memory)
+
+		for i := 1; i < len(values); i++ {
+			startNext, endNext := tokenToNfa(values[i], memory)
 			end.transitions[EpsilonChar] = append(end.transitions[EpsilonChar], startNext)
 
 			end = endNext
@@ -144,7 +187,7 @@ func tokenToNfa(token regexToken) (*State, *State) {
 		return start, end
 	case Optional:
 		value := token.value.([]regexToken)[0]
-		start, end := tokenToNfa(value)
+		start, end := tokenToNfa(value, memory)
 
 		to := &State{
 			transitions: map[uint8][]*State{},
