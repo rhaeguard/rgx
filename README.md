@@ -14,7 +14,7 @@ Hopefully will support basic regular syntax from POSIX standard for regex.
 - [x] `[ ]` bracket notation, ranges and all that
 - [x] `[^ ]` bracket negation notation
 - [x] `*` none or more times; Kleene's star
-- [ ] `( )` capturing group or subexpression
+- [x] `( )` capturing group or subexpression
 - [ ] `\n` backreference, e.g, `(dog)\1` where `n` is in `[0, 9]`
 - [ ] `{m,n}` more than or equal to `m` and less than equal to `n` times
 - [ ] `\` escape character 

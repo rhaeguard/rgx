@@ -65,16 +65,17 @@ func (s *State) check(inputString string, pos int, started bool, ctx *regexCheck
 		return true
 	}
 
-	epsilonTransitions := s.transitions[EpsilonChar]
-	for i := range epsilonTransitions {
-		state := epsilonTransitions[i]
-		if state.check(inputString, pos, true, ctx) {
-			return true
-		}
-		// if we're at the start of the text, we should try progressing
-		if currentChar == StartOfText && state.check(inputString, pos+1, true, ctx) {
-			return true
-		}
+	epsilonTransitionsResult := false
+	for _, state := range s.transitions[EpsilonChar] {
+		// we need to evaluate all the epsilon transitions
+		// because there's a chance that we'll finish early
+		// while there's still more to process
+		epsilonTransitionsResult = state.check(inputString, pos, true, ctx) || epsilonTransitionsResult
+		epsilonTransitionsResult = (currentChar == StartOfText && state.check(inputString, pos+1, true, ctx)) || epsilonTransitionsResult
+	}
+
+	if epsilonTransitionsResult {
+		return true
 	}
 
 	if !started && pos+1 < len(inputString) {
