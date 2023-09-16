@@ -30,14 +30,19 @@ func (s *State) nextStateWith(ch uint8) *State {
 
 func (s *State) check(inputString string, pos int, started bool, ctx *regexCheckContext) bool {
 	if s.group != nil && s.group.start {
-		ctx.groups[s.group.name] = &capture{
+		c := &capture{
 			start: pos,
 			end:   -1,
-		} // start the group
+		}
+		for _, groupName := range s.group.names {
+			ctx.groups[groupName] = c // start the group
+		}
 	}
 
 	if s.group != nil && s.group.end {
-		ctx.groups[s.group.name].end = pos
+		for _, groupName := range s.group.names {
+			ctx.groups[groupName].end = pos // start the group
+		}
 	}
 
 	currentChar := getChar(inputString, pos)
@@ -54,6 +59,22 @@ func (s *State) check(inputString string, pos int, started bool, ctx *regexCheck
 		return true
 	}
 
+	if s.backreference != nil {
+		captured, ok := ctx.groups[s.backreference.name]
+		if ok {
+			capturedString := captured.string(inputString)
+			size := len(capturedString)
+			for i := 0; i < size; i++ {
+				if pos >= len(inputString) || inputString[pos+i] != capturedString[i] {
+					return false
+				}
+			}
+			return s.backreference.target.check(inputString, pos+size, true, ctx)
+		} else {
+			return false
+		}
+	}
+
 	nextState := s.nextStateWith(currentChar)
 	// if there are no transitions for the current char as is
 	// then see if there's a transition for any char, i.e. dot (.) sign
@@ -61,20 +82,16 @@ func (s *State) check(inputString string, pos int, started bool, ctx *regexCheck
 		nextState = s.nextStateWith(AnyChar)
 	}
 
-	if nextState != nil && nextState.check(inputString, pos+1, true, ctx) {
-		return true
-	}
-
-	epsilonTransitionsResult := false
+	result := nextState != nil && nextState.check(inputString, pos+1, true, ctx)
 	for _, state := range s.transitions[EpsilonChar] {
 		// we need to evaluate all the epsilon transitions
 		// because there's a chance that we'll finish early
 		// while there's still more to process
-		epsilonTransitionsResult = state.check(inputString, pos, true, ctx) || epsilonTransitionsResult
-		epsilonTransitionsResult = (currentChar == StartOfText && state.check(inputString, pos+1, true, ctx)) || epsilonTransitionsResult
+		result = state.check(inputString, pos, true, ctx) || result
+		result = (currentChar == StartOfText && state.check(inputString, pos+1, true, ctx)) || result
 	}
 
-	if epsilonTransitionsResult {
+	if result {
 		return true
 	}
 
@@ -87,8 +104,9 @@ func (s *State) check(inputString string, pos int, started bool, ctx *regexCheck
 
 func Check(regexString string, inputString string) Result {
 	parseContext := parsingContext{
-		pos:    0,
-		tokens: []regexToken{},
+		pos:            0,
+		tokens:         []regexToken{},
+		capturedGroups: map[string]bool{},
 	}
 	regex(regexString, &parseContext)
 	nfaEntry := toNfa(&parseContext)

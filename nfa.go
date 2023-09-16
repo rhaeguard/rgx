@@ -5,18 +5,24 @@ import (
 )
 
 type group struct {
-	name  string
+	names []string
 	start bool
 	end   bool
 }
 
+type backreference struct {
+	name   string
+	target *State
+}
+
 type State struct {
-	start       bool
-	terminal    bool
-	endOfText   bool
-	startOfText bool
-	transitions map[uint8][]*State
-	group       *group
+	start         bool
+	terminal      bool
+	endOfText     bool
+	startOfText   bool
+	transitions   map[uint8][]*State
+	group         *group
+	backreference *backreference
 }
 
 const (
@@ -46,7 +52,7 @@ func toNfa(memory *parsingContext) *State {
 			EpsilonChar: {startState},
 		},
 		group: &group{
-			name:  "0",
+			names: []string{"0"},
 			start: true,
 			end:   false,
 		},
@@ -56,7 +62,7 @@ func toNfa(memory *parsingContext) *State {
 		transitions: map[uint8][]*State{},
 		terminal:    true,
 		group: &group{
-			name:  "0",
+			names: []string{"0"},
 			start: false,
 			end:   true,
 		},
@@ -121,9 +127,13 @@ func tokenToNfa(token regexToken, memory *parsingContext, startFrom *State) (*St
 
 		return startFrom, to
 	case Group:
-		values := token.value.([]regexToken)
+		v := token.value.([]interface{})
+		values := v[0].([]regexToken)
+		givenGroupName := v[1].(string)
 
 		groupName := fmt.Sprintf("%d", memory.nextGroup())
+		memory.capturedGroups[groupName] = true
+		memory.capturedGroups[givenGroupName] = true
 
 		start, end := tokenToNfa(values[0], memory, &State{
 			transitions: map[uint8][]*State{},
@@ -139,7 +149,7 @@ func tokenToNfa(token regexToken, memory *parsingContext, startFrom *State) (*St
 				EpsilonChar: {start},
 			},
 			group: &group{
-				name:  groupName,
+				names: []string{groupName, givenGroupName},
 				start: true,
 			},
 		}
@@ -147,8 +157,8 @@ func tokenToNfa(token regexToken, memory *parsingContext, startFrom *State) (*St
 		to := &State{
 			transitions: map[uint8][]*State{},
 			group: &group{
-				name: groupName,
-				end:  true,
+				names: []string{groupName, givenGroupName},
+				end:   true,
 			},
 		}
 
@@ -222,6 +232,21 @@ func tokenToNfa(token regexToken, memory *parsingContext, startFrom *State) (*St
 	case TextEnd:
 		startFrom.endOfText = true
 		return startFrom, startFrom
+	case Backreference:
+		groupName := token.value.(string)
+		if _, ok := memory.capturedGroups[groupName]; !ok {
+			panic(fmt.Sprintf("Group (%s) does not exist", groupName))
+		}
+		to := &State{
+			transitions: map[uint8][]*State{},
+		}
+
+		startFrom.backreference = &backreference{
+			name:   groupName,
+			target: to,
+		}
+
+		return startFrom, to
 	default:
 		panic(fmt.Sprintf("unrecognized token: %+v", token))
 	}

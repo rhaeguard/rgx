@@ -17,6 +17,7 @@ const (
 	Wildcard                       = iota // .
 	TextBeginning                  = iota // ^
 	TextEnd                        = iota // $
+	Backreference                  = iota // $
 )
 
 type regexToken struct {
@@ -25,9 +26,10 @@ type regexToken struct {
 }
 
 type parsingContext struct {
-	pos          int
-	tokens       []regexToken
-	groupCounter uint8
+	pos            int
+	tokens         []regexToken
+	groupCounter   uint8
+	capturedGroups map[string]bool
 }
 
 func (p *parsingContext) loc() int {
@@ -86,10 +88,10 @@ var specialChars = map[uint8]bool{
 	'=': true,
 	'-': true,
 	//'.':  true,
-	'+':  true,
-	';':  true,
-	'\'': true,
-	'/':  true,
+	'+': true,
+	';': true,
+	//'\'': true,
+	'/': true,
 }
 
 func isSpecialChar(ch uint8) bool {
@@ -189,6 +191,20 @@ func parseGroup(regexString string, memory *parsingContext) {
 		tokens: []regexToken{},
 	}
 
+	groupName := ""
+	if regexString[groupContext.loc()] == '?' {
+		if regexString[groupContext.adv()] == '<' {
+			for regexString[groupContext.adv()] != '>' {
+				ch := regexString[groupContext.loc()]
+				groupName += fmt.Sprintf("%c", ch)
+			}
+		} else {
+			panic("incomplete group structure")
+		}
+
+		groupContext.adv()
+	}
+
 	for regexString[groupContext.loc()] != ')' {
 		ch := regexString[groupContext.loc()]
 		processChar(regexString, &groupContext, ch)
@@ -197,7 +213,7 @@ func parseGroup(regexString string, memory *parsingContext) {
 
 	token := regexToken{
 		tokenType: Group,
-		value:     groupContext.tokens,
+		value:     []interface{}{groupContext.tokens, groupName},
 	}
 	memory.push(token)
 	memory.advTo(groupContext.loc())
@@ -254,6 +270,35 @@ func processChar(regexString string, memory *parsingContext, ch uint8) {
 		parseBracket(regexString, memory)
 	} else if isQuantifier(ch) {
 		parseQuantifier(ch, memory)
+	} else if ch == '\\' { // backslash
+		nextChar := regexString[memory.loc()+1]
+		if isNumeric(nextChar) { // \0 should be illegal
+			token := regexToken{
+				tokenType: Backreference,
+				value:     fmt.Sprintf("%c", nextChar),
+			}
+			memory.push(token)
+			memory.adv()
+		} else if nextChar == 'k' {
+			memory.adv()
+			groupName := ""
+			if regexString[memory.adv()] == '<' {
+				for regexString[memory.adv()] != '>' {
+					nextChar = regexString[memory.loc()]
+					groupName += fmt.Sprintf("%c", nextChar)
+				}
+			} else {
+				panic("invalid backreference syntax")
+			}
+			token := regexToken{
+				tokenType: Backreference,
+				value:     groupName,
+			}
+			memory.push(token)
+			memory.adv()
+		} else {
+			panic("cannot process escape chars yet")
+		}
 	} else if isLiteral(ch) {
 		parseLiteral(ch, memory)
 	} else if isDot(ch) {

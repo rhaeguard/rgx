@@ -1,6 +1,9 @@
 package rgx
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+)
 
 func name(s *State) string {
 	return fmt.Sprintf("a%p", s)
@@ -17,8 +20,9 @@ func sliceContains(slice []string, element string) bool {
 
 func DumpDotGraphForRegex(regexString string) {
 	memory := parsingContext{
-		pos:    0,
-		tokens: []regexToken{},
+		pos:            0,
+		tokens:         []regexToken{},
+		capturedGroups: map[string]bool{},
 	}
 	regex(regexString, &memory)
 	nfaEntry := toNfa(&memory)
@@ -36,9 +40,9 @@ func dot(s *State, processedStateForDot map[string]bool) {
 	if !s.start || !s.terminal {
 		if s.group != nil {
 			if s.group.start {
-				fmt.Printf("%s [label=\"[%s\"]\n", thisStateName, s.group.name)
+				fmt.Printf("%s [label=\"[%s\"]\n", thisStateName, strings.Join(s.group.names[:], ":"))
 			} else {
-				fmt.Printf("%s [label=\"%s]\"]\n", thisStateName, s.group.name)
+				fmt.Printf("%s [label=\"%s]\"]\n", thisStateName, strings.Join(s.group.names[:], ":"))
 			}
 		} else {
 			fmt.Printf("%s [label=\"\"]\n", thisStateName)
@@ -77,6 +81,14 @@ func dot(s *State, processedStateForDot map[string]bool) {
 			if _, ok := processedStateForDot[thatStateName]; !ok {
 				dot(state, processedStateForDot)
 			}
+		}
+	}
+
+	if s.backreference != nil {
+		thatStateName := name(s.backreference.target)
+		fmt.Printf("%s -> %s [label=\"g%s\"]\n", thisStateName, thatStateName, s.backreference.name)
+		if _, ok := processedStateForDot[thatStateName]; !ok {
+			dot(s.backreference.target, processedStateForDot)
 		}
 	}
 }
