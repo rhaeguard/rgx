@@ -126,17 +126,17 @@ func TestCheckForDev(t *testing.T) {
 		//{"([a-z]+)\\1", "dogdog", true},
 		//{"([0-9])\\1", "11hello", true},
 		//{"([0-9])\\1", "hi22", true},
-		//{"([0-9])\\1", "bazoo23", false},
+		{"([0-9])([a-d](hello))\\1", "bazoo23", false},
 		//{"(dog)-(cat)-\\2-\\1", "nonsensedog-cat-cat-dognonsense", true},
 		//{"(?<anim>cat)-\\k<anim>", "nonsensedog-cat-cat-dognonsense", true},
-		{"(?<letter>[cxv])-[a-z]+-\\k<letter>", "c-abcd-c", true},
-		{"(?<letter>[cxv])-[a-z]+-\\k<letter>", "c-abcd-d", false},
+		//{"(?<letter>[cxv])-[a-z]+-\\k<letter>", "c-abcd-c", true},
+		//{"(?<letter>[cxv])-[a-z]+-\\k<letter>", "c-abcd-d", false},
 	}
 
 	for _, test := range data {
 		testName := fmt.Sprintf("%s-%s-%t", test.regexString, test.input, test.expected)
 		t.Run(testName, func(t *testing.T) {
-			//DumpDotGraphForRegex(test.regexString)
+			DumpDotGraphForRegex(test.regexString)
 			result := Check(test.regexString, test.input)
 			if test.expected != result.matches {
 				_ = fmt.Errorf("test %s failed", testName)

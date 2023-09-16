@@ -261,6 +261,15 @@ func parseLiteral(ch uint8, memory *parsingContext) {
 	memory.push(token)
 }
 
+func getStringTill(startPos int, terminalChar uint8, inputString string) (string, int) {
+	for i := startPos; i < len(inputString); i++ {
+		if inputString[i] == terminalChar {
+			return inputString[startPos:i], i
+		}
+	}
+	panic(fmt.Sprintf("string does not end with the terminal char: %c", terminalChar))
+}
+
 func processChar(regexString string, memory *parsingContext, ch uint8) {
 	if ch == '(' {
 		memory.adv()
@@ -271,34 +280,7 @@ func processChar(regexString string, memory *parsingContext, ch uint8) {
 	} else if isQuantifier(ch) {
 		parseQuantifier(ch, memory)
 	} else if ch == '\\' { // backslash
-		nextChar := regexString[memory.loc()+1]
-		if isNumeric(nextChar) { // \0 should be illegal
-			token := regexToken{
-				tokenType: Backreference,
-				value:     fmt.Sprintf("%c", nextChar),
-			}
-			memory.push(token)
-			memory.adv()
-		} else if nextChar == 'k' {
-			memory.adv()
-			groupName := ""
-			if regexString[memory.adv()] == '<' {
-				for regexString[memory.adv()] != '>' {
-					nextChar = regexString[memory.loc()]
-					groupName += fmt.Sprintf("%c", nextChar)
-				}
-			} else {
-				panic("invalid backreference syntax")
-			}
-			token := regexToken{
-				tokenType: Backreference,
-				value:     groupName,
-			}
-			memory.push(token)
-			memory.adv()
-		} else {
-			panic("cannot process escape chars yet")
-		}
+		parseBackslash(regexString, memory)
 	} else if isLiteral(ch) {
 		parseLiteral(ch, memory)
 	} else if isDot(ch) {
@@ -340,6 +322,37 @@ func processChar(regexString string, memory *parsingContext, ch uint8) {
 			value:     ch,
 		}
 		memory.push(token)
+	}
+}
+
+func parseBackslash(regexString string, memory *parsingContext) {
+	nextChar := regexString[memory.loc()+1]
+	if isNumeric(nextChar) { // \0 should be illegal
+		token := regexToken{
+			tokenType: Backreference,
+			value:     fmt.Sprintf("%c", nextChar),
+		}
+		memory.push(token)
+		memory.adv()
+	} else if nextChar == 'k' {
+		memory.adv()
+		if regexString[memory.adv()] == '<' {
+			groupName := ""
+			for regexString[memory.adv()] != '>' {
+				nextChar = regexString[memory.loc()]
+				groupName += fmt.Sprintf("%c", nextChar)
+			}
+			token := regexToken{
+				tokenType: Backreference,
+				value:     groupName,
+			}
+			memory.push(token)
+			memory.adv()
+		} else {
+			panic("invalid backreference syntax")
+		}
+	} else {
+		panic("cannot process escape chars yet")
 	}
 }
 

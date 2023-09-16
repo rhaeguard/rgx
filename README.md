@@ -16,5 +16,6 @@ Hopefully will support basic regular syntax from POSIX standard for regex.
 - [x] `*` none or more times; Kleene's star
 - [x] `( )` capturing group or subexpression
 - [x] `\n` backreference, e.g, `(dog)\1` where `n` is in `[0, 9]`
+- [x] `\k<name>` named backreference, e.g, `(?<animal>dog)\k<animal>`
 - [ ] `\` escape character
 - [ ] `{m,n}` more than or equal to `m` and less than equal to `n` times
