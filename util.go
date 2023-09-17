@@ -38,11 +38,16 @@ func dot(s *State, processedStateForDot map[string]bool) {
 	processedStateForDot[thisStateName] = true
 
 	if !s.start || !s.terminal {
-		if s.group != nil {
-			if s.group.start {
-				fmt.Printf("%s [label=\"[%s\"]\n", thisStateName, strings.Join(s.group.names[:], ":"))
-			} else {
-				fmt.Printf("%s [label=\"%s]\"]\n", thisStateName, strings.Join(s.group.names[:], ":"))
+		if s.groups != nil {
+			startGroups := ""
+			endGroups := ""
+			for _, capturedGroup := range s.groups {
+				if capturedGroup.start {
+					startGroups += "[" + strings.Join(capturedGroup.names[:], ":") + "]"
+				} else {
+					endGroups += "[" + strings.Join(capturedGroup.names[:], ":") + "]"
+				}
+				fmt.Printf("%s [label=\"%s--%s\"]\n", thisStateName, startGroups, endGroups)
 			}
 		} else {
 			fmt.Printf("%s [label=\"\"]\n", thisStateName)

@@ -21,7 +21,7 @@ type State struct {
 	endOfText     bool
 	startOfText   bool
 	transitions   map[uint8][]*State
-	group         *group
+	groups        []*group
 	backreference *backreference
 }
 
@@ -51,20 +51,22 @@ func toNfa(memory *parsingContext) *State {
 		transitions: map[uint8][]*State{
 			EpsilonChar: {startState},
 		},
-		group: &group{
+		groups: []*group{{
 			names: []string{"0"},
 			start: true,
 			end:   false,
-		},
+		}},
 	}
 
 	end := &State{
 		transitions: map[uint8][]*State{},
 		terminal:    true,
-		group: &group{
-			names: []string{"0"},
-			start: false,
-			end:   true,
+		groups: []*group{
+			{
+				names: []string{"0"},
+				start: false,
+				end:   true,
+			},
 		},
 	}
 
@@ -129,12 +131,8 @@ func tokenToNfa(token regexToken, memory *parsingContext, startFrom *State) (*St
 	case Group:
 		v := token.value.([]interface{})
 		values := v[0].([]regexToken)
-		givenGroupName := v[1].(string)
 
-		groupName := fmt.Sprintf("%d", memory.nextGroup())
-		memory.capturedGroups[groupName] = true
-		memory.capturedGroups[givenGroupName] = true
-
+		// concatenate all the elements in the group
 		start, end := tokenToNfa(values[0], memory, &State{
 			transitions: map[uint8][]*State{},
 		})
@@ -143,28 +141,44 @@ func tokenToNfa(token regexToken, memory *parsingContext, startFrom *State) (*St
 			_, endNext := tokenToNfa(values[i], memory, end)
 			end = endNext
 		}
+		// concatenation ends
 
-		from := &State{
-			transitions: map[uint8][]*State{
-				EpsilonChar: {start},
-			},
-			group: &group{
-				names: []string{groupName, givenGroupName},
+		groupNameNumeric := fmt.Sprintf("%d", memory.nextGroup())
+		groupNameUserSet := v[1].(string)
+
+		groupNames := []string{groupNameNumeric}
+		memory.capturedGroups[groupNameNumeric] = true
+		if groupNameUserSet != "" {
+			groupNames = append(groupNames, groupNameUserSet)
+			memory.capturedGroups[groupNameUserSet] = true
+		}
+
+		if startFrom.groups != nil {
+			startFrom.groups = append(startFrom.groups, &group{
+				names: groupNames,
 				start: true,
-			},
+			})
+		} else {
+			startFrom.groups = []*group{{
+				names: groupNames,
+				start: true,
+			}}
 		}
 
-		to := &State{
-			transitions: map[uint8][]*State{},
-			group: &group{
-				names: []string{groupName, givenGroupName},
+		if end.groups != nil {
+			end.groups = append(end.groups, &group{
+				names: groupNames,
 				end:   true,
-			},
+			})
+		} else {
+			end.groups = []*group{{
+				names: groupNames,
+				end:   true,
+			}}
 		}
 
-		startFrom.transitions[EpsilonChar] = append(startFrom.transitions[EpsilonChar], from)
-		end.transitions[EpsilonChar] = append(end.transitions[EpsilonChar], to)
-		return startFrom, to
+		startFrom.transitions[EpsilonChar] = append(startFrom.transitions[EpsilonChar], start)
+		return startFrom, end
 	case GroupUncaptured:
 		values := token.value.([]regexToken)
 

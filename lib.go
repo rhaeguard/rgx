@@ -29,19 +29,27 @@ func (s *State) nextStateWith(ch uint8) *State {
 }
 
 func (s *State) check(inputString string, pos int, started bool, ctx *regexCheckContext) bool {
-	if s.group != nil && s.group.start {
-		c := &capture{
-			start: pos,
-			end:   -1,
-		}
-		for _, groupName := range s.group.names {
-			ctx.groups[groupName] = c // start the group
+	if s.groups != nil {
+		for _, capturedGroup := range s.groups {
+			if capturedGroup.start {
+				c := &capture{
+					start: pos,
+					end:   -1,
+				}
+				for _, groupName := range capturedGroup.names {
+					ctx.groups[groupName] = c // start the group
+				}
+			}
 		}
 	}
 
-	if s.group != nil && s.group.end {
-		for _, groupName := range s.group.names {
-			ctx.groups[groupName].end = pos // start the group
+	if s.groups != nil {
+		for _, capturedGroup := range s.groups {
+			if capturedGroup.end {
+				for _, groupName := range capturedGroup.names {
+					ctx.groups[groupName].end = pos // start the group
+				}
+			}
 		}
 	}
 
@@ -61,18 +69,24 @@ func (s *State) check(inputString string, pos int, started bool, ctx *regexCheck
 
 	if s.backreference != nil {
 		captured, ok := ctx.groups[s.backreference.name]
-		if ok {
-			capturedString := captured.string(inputString)
-			size := len(capturedString)
-			for i := 0; i < size; i++ {
-				if pos >= len(inputString) || inputString[pos+i] != capturedString[i] {
-					return false
-				}
-			}
-			return s.backreference.target.check(inputString, pos+size, true, ctx)
-		} else {
+		if !ok {
 			return false
 		}
+
+		capturedString := captured.string(inputString)
+		size := len(capturedString)
+		backreferenceCheckFailed := false
+		for i := 0; i < size; i++ {
+			if pos >= len(inputString) || inputString[pos+i] != capturedString[i] {
+				backreferenceCheckFailed = true
+				break
+			}
+		}
+		if !backreferenceCheckFailed {
+			return s.backreference.target.check(inputString, pos+size, true, ctx)
+		}
+		// backreference check failed, let's see if
+		// there are any other transitions we can use
 	}
 
 	nextState := s.nextStateWith(currentChar)

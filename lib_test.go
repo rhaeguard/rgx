@@ -99,6 +99,13 @@ func TestCheck(t *testing.T) {
 		{"(ha$|^hi)", "hill", true},
 		{"(ha$|^hi)", "ahaa", false},
 		{"(ha$|^hi)", "ahii", false},
+		// capturing groups, numeric groups and named groups
+		{"([0-9])\\1?hi", "h2hi", true},
+		{"([0-9])([a-d](hello))\\1", "bazoo23", false},
+		{"(dog)-(cat)-\\2-\\1", "nonsensedog-cat-cat-dognonsense", true},
+		{"(?<anim>cat)-\\k<anim>", "nonsensedog-cat-cat-dognonsense", true},
+		{"(?<letter>[cxv])-[a-z]+-\\k<letter>", "c-abcd-c", true},
+		{"(?<letter>[cxv])-[a-z]+-\\k<letter>", "c-abcd-d", false},
 	}
 
 	for _, test := range data {
@@ -125,12 +132,7 @@ func TestCheckForDev(t *testing.T) {
 		//{"gr(a|e)y", "grey", true},
 		//{"([a-z]+)\\1", "dogdog", true},
 		//{"([0-9])\\1", "11hello", true},
-		//{"([0-9])\\1", "hi22", true},
-		{"([0-9])([a-d](hello))\\1", "bazoo23", false},
-		//{"(dog)-(cat)-\\2-\\1", "nonsensedog-cat-cat-dognonsense", true},
-		//{"(?<anim>cat)-\\k<anim>", "nonsensedog-cat-cat-dognonsense", true},
-		//{"(?<letter>[cxv])-[a-z]+-\\k<letter>", "c-abcd-c", true},
-		//{"(?<letter>[cxv])-[a-z]+-\\k<letter>", "c-abcd-d", false},
+		{"([0-9])\\1", "hi22", true},
 	}
 
 	for _, test := range data {
