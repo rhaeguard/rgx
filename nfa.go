@@ -84,35 +84,14 @@ func tokenToNfa(token regexToken, memory *parsingContext, startFrom *State) (*St
 		}
 		startFrom.transitions[value] = append(startFrom.transitions[value], to)
 		return startFrom, to
+	case OneOrMore, NoneOrMore, Optional:
+		return handleQuantifierToToken(token, memory, startFrom)
 	case Wildcard:
 		to := &State{
 			transitions: map[uint8][]*State{},
 		}
 
 		startFrom.transitions[AnyChar] = append(startFrom.transitions[AnyChar], to)
-
-		return startFrom, to
-	case NoneOrMore:
-		value := token.value.([]regexToken)[0]
-		_, end := tokenToNfa(value, memory, startFrom)
-
-		to := &State{
-			transitions: map[uint8][]*State{},
-		}
-
-		startFrom.transitions[EpsilonChar] = append(startFrom.transitions[EpsilonChar], to)
-		end.transitions[EpsilonChar] = append(end.transitions[EpsilonChar], to, startFrom)
-
-		return startFrom, to
-	case OneOrMore:
-		value := token.value.([]regexToken)[0]
-		_, end := tokenToNfa(value, memory, startFrom)
-
-		to := &State{
-			transitions: map[uint8][]*State{},
-		}
-
-		end.transitions[EpsilonChar] = append(end.transitions[EpsilonChar], to, startFrom)
 
 		return startFrom, to
 	case Or:
@@ -193,18 +172,6 @@ func tokenToNfa(token regexToken, memory *parsingContext, startFrom *State) (*St
 
 		startFrom.transitions[EpsilonChar] = append(startFrom.transitions[EpsilonChar], start)
 		return startFrom, end
-	case Optional:
-		value := token.value.([]regexToken)[0]
-		_, end := tokenToNfa(value, memory, startFrom)
-
-		to := &State{
-			transitions: map[uint8][]*State{},
-		}
-
-		startFrom.transitions[EpsilonChar] = append(startFrom.transitions[EpsilonChar], to)
-		end.transitions[EpsilonChar] = append(end.transitions[EpsilonChar], to)
-
-		return startFrom, to
 	case Bracket:
 		constructTokens := token.value.([]regexToken)
 
@@ -264,4 +231,78 @@ func tokenToNfa(token regexToken, memory *parsingContext, startFrom *State) (*St
 	default:
 		panic(fmt.Sprintf("unrecognized token: %+v", token))
 	}
+}
+
+func handleQuantifierToToken(token regexToken, memory *parsingContext, startFrom *State) (*State, *State) {
+	// the minimum amount of time the NFA needs to repeat
+	var min int
+	// the maximum amount of time the NFA needs to repeat
+	var max int
+
+	const Infinity = -1
+
+	switch token.tokenType {
+	case OneOrMore:
+		min = 1
+		max = Infinity
+	case NoneOrMore:
+		min = 0
+		max = Infinity
+	case Optional:
+		min = 0
+		max = 1
+	}
+
+	to := &State{
+		transitions: map[uint8][]*State{},
+	}
+
+	if min == 0 {
+		startFrom.transitions[EpsilonChar] = append(startFrom.transitions[EpsilonChar], to)
+	}
+
+	var total int
+
+	if max != Infinity {
+		total = max
+	} else {
+		if min == 0 {
+			total = 1 // we need to at least create this NFA once, even if we require it 0 times
+		} else {
+			total = min
+		}
+	}
+
+	value := token.value.([]regexToken)[0]
+	previousStart, previousEnd := tokenToNfa(value, memory, &State{
+		transitions: map[uint8][]*State{},
+	})
+	startFrom.transitions[EpsilonChar] = append(startFrom.transitions[EpsilonChar], previousStart)
+
+	// starting from 2, because the one above is the first one
+	for i := 2; i <= total; i++ {
+		// the same NFA needs to be generated 'total' times
+		start, end := tokenToNfa(value, memory, &State{
+			transitions: map[uint8][]*State{},
+		})
+		// connect the end of the previous one to the start of this one
+		previousEnd.transitions[EpsilonChar] = append(previousEnd.transitions[EpsilonChar], start)
+
+		// keep track of the previous NFA's entry and exit states
+		previousStart = start
+		previousEnd = end
+
+		// after the minimum required amount of repetitions
+		// the rest must be optional, thus we add an epsilon transition
+		// to the start of each NFA so that we can skip them if needed
+		if i > min {
+			start.transitions[EpsilonChar] = append(start.transitions[EpsilonChar], to)
+		}
+	}
+
+	previousEnd.transitions[EpsilonChar] = append(previousEnd.transitions[EpsilonChar], to)
+	if max == Infinity {
+		to.transitions[EpsilonChar] = append(to.transitions[EpsilonChar], previousStart)
+	}
+	return startFrom, to
 }

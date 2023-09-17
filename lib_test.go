@@ -132,7 +132,8 @@ func TestCheckForDev(t *testing.T) {
 		//{"gr(a|e)y", "grey", true},
 		//{"([a-z]+)\\1", "dogdog", true},
 		//{"([0-9])\\1", "11hello", true},
-		{"([0-9])\\1", "hi22", true},
+		//{"([0-9])\\1", "hi22", true},
+		{"he(ya)*o", "heo", true},
 	}
 
 	for _, test := range data {
