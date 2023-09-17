@@ -1,6 +1,10 @@
 package rgx
 
-import "fmt"
+import (
+	"fmt"
+	"strconv"
+	"strings"
+)
 
 type regexTokenType uint8
 
@@ -18,11 +22,18 @@ const (
 	TextBeginning                  = iota // ^
 	TextEnd                        = iota // $
 	Backreference                  = iota // $
+	Quantifier                     = iota // {m,n} or {m,}, {m}
 )
 
 type regexToken struct {
 	tokenType regexTokenType
 	value     interface{}
+}
+
+type quantifier struct {
+	min   int
+	max   int
+	value interface{}
 }
 
 type parsingContext struct {
@@ -78,8 +89,8 @@ var specialChars = map[uint8]bool{
 	'&': true,
 	'*': true,
 	' ': true,
-	'{': true,
-	'}': true,
+	//'{': true,
+	//'}': true,
 	'[': true,
 	']': true,
 	'(': true,
@@ -261,15 +272,6 @@ func parseLiteral(ch uint8, memory *parsingContext) {
 	memory.push(token)
 }
 
-func getStringTill(startPos int, terminalChar uint8, inputString string) (string, int) {
-	for i := startPos; i < len(inputString); i++ {
-		if inputString[i] == terminalChar {
-			return inputString[startPos:i], i
-		}
-	}
-	panic(fmt.Sprintf("string does not end with the terminal char: %c", terminalChar))
-}
-
 func processChar(regexString string, memory *parsingContext, ch uint8) {
 	if ch == '(' {
 		memory.adv()
@@ -279,6 +281,42 @@ func processChar(regexString string, memory *parsingContext, ch uint8) {
 		parseBracket(regexString, memory)
 	} else if isQuantifier(ch) {
 		parseQuantifier(ch, memory)
+	} else if ch == '{' {
+		startPos := memory.adv()
+		var endPos = memory.loc()
+		for regexString[endPos] != '}' {
+			endPos++
+		}
+		expr := regexString[startPos:endPos]
+		pieces := strings.Split(expr, ",")
+
+		var start int
+		var end int
+
+		if len(pieces) == 1 {
+			start, _ = strconv.Atoi(pieces[0])
+			end = start
+		} else if len(pieces) == 2 {
+			start, _ = strconv.Atoi(pieces[0])
+			if pieces[1] == "" {
+				end = -1 // infinity
+			} else {
+				end, _ = strconv.Atoi(pieces[1])
+			}
+		}
+
+		memory.advTo(endPos + 1)
+
+		token := regexToken{
+			tokenType: Quantifier,
+			value: quantifier{
+				min:   start,
+				max:   end,
+				value: memory.getLast(1),
+			},
+		}
+		memory.removeLast(1)
+		memory.push(token)
 	} else if ch == '\\' { // backslash
 		parseBackslash(regexString, memory)
 	} else if isLiteral(ch) {

@@ -84,7 +84,7 @@ func tokenToNfa(token regexToken, memory *parsingContext, startFrom *State) (*St
 		}
 		startFrom.transitions[value] = append(startFrom.transitions[value], to)
 		return startFrom, to
-	case OneOrMore, NoneOrMore, Optional:
+	case OneOrMore, NoneOrMore, Optional, Quantifier:
 		return handleQuantifierToToken(token, memory, startFrom)
 	case Wildcard:
 		to := &State{
@@ -251,6 +251,10 @@ func handleQuantifierToToken(token regexToken, memory *parsingContext, startFrom
 	case Optional:
 		min = 0
 		max = 1
+	case Quantifier:
+		payload := token.value.(quantifier)
+		min = payload.min
+		max = payload.max
 	}
 
 	to := &State{
@@ -272,8 +276,12 @@ func handleQuantifierToToken(token regexToken, memory *parsingContext, startFrom
 			total = min
 		}
 	}
-
-	value := token.value.([]regexToken)[0]
+	var value regexToken
+	if token.tokenType == Quantifier {
+		value = token.value.(quantifier).value.([]regexToken)[0]
+	} else {
+		value = token.value.([]regexToken)[0]
+	}
 	previousStart, previousEnd := tokenToNfa(value, memory, &State{
 		transitions: map[uint8][]*State{},
 	})
