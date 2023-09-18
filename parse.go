@@ -10,9 +10,6 @@ type regexTokenType uint8
 
 const (
 	Literal         regexTokenType = iota // any literal character, e.g., a, b, 1, 2, etc.
-	NoneOrMore                     = iota // *
-	OneOrMore                      = iota // +
-	Optional                       = iota // ?
 	Or                             = iota // |
 	Bracket                        = iota // []
 	BracketNot                     = iota // [^]
@@ -294,6 +291,7 @@ func processChar(regexString string, memory *parsingContext, ch uint8) {
 		for regexString[endPos] != '}' {
 			endPos++
 		}
+		memory.advTo(endPos)
 		expr := regexString[startPos:endPos]
 		pieces := strings.Split(expr, ",")
 
@@ -306,13 +304,11 @@ func processChar(regexString string, memory *parsingContext, ch uint8) {
 		} else if len(pieces) == 2 {
 			start, _ = strconv.Atoi(pieces[0])
 			if pieces[1] == "" {
-				end = -1 // infinity
+				end = QuantifierInfinity
 			} else {
 				end, _ = strconv.Atoi(pieces[1])
 			}
 		}
-
-		memory.advTo(endPos)
 
 		token := regexToken{
 			tokenType: Quantifier,
