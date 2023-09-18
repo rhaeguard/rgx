@@ -1,142 +1,31 @@
 package rgx
 
-import "fmt"
-
-func getChar(input string, pos int) uint8 {
-	if pos >= 0 && pos < len(input) {
-		return input[pos]
-	}
-
-	if pos >= len(input) {
-		return EndOfText
-	}
-
-	return StartOfText
-}
-
-func (s *State) nextStateWith(ch uint8) *State {
-	states := s.transitions[ch]
-
-	size := len(states)
-
-	if size == 0 {
-		return nil
-	} else if size == 1 {
-		return states[0]
-	}
-
-	panic(fmt.Sprintf("There must be at most 1 transition, found %d", size))
-}
-
-func (s *State) check(inputString string, pos int, started bool, ctx *regexCheckContext) bool {
-	if s.groups != nil {
-		for _, capturedGroup := range s.groups {
-			if capturedGroup.start {
-				c := &capture{
-					start: pos,
-					end:   -1,
-				}
-				for _, groupName := range capturedGroup.names {
-					ctx.groups[groupName] = c // start the group
-				}
-			}
-		}
-	}
-
-	if s.groups != nil {
-		for _, capturedGroup := range s.groups {
-			if capturedGroup.end {
-				for _, groupName := range capturedGroup.names {
-					ctx.groups[groupName].end = pos // start the group
-				}
-			}
-		}
-	}
-
-	currentChar := getChar(inputString, pos)
-
-	if s.endOfText && currentChar != EndOfText {
-		return false
-	}
-
-	if s.startOfText && currentChar != StartOfText {
-		return false
-	}
-
-	if s.terminal {
-		return true
-	}
-
-	if s.backreference != nil {
-		captured, ok := ctx.groups[s.backreference.name]
-		if !ok {
-			return false
-		}
-
-		capturedString := captured.string(inputString)
-		size := len(capturedString)
-		backreferenceCheckFailed := false
-		for i := 0; i < size; i++ {
-			if pos >= len(inputString) || inputString[pos+i] != capturedString[i] {
-				backreferenceCheckFailed = true
-				break
-			}
-		}
-		if !backreferenceCheckFailed {
-			return s.backreference.target.check(inputString, pos+size, true, ctx)
-		}
-		// backreference check failed, let's see if
-		// there are any other transitions we can use
-	}
-
-	nextState := s.nextStateWith(currentChar)
-	// if there are no transitions for the current char as is
-	// then see if there's a transition for any char, i.e. dot (.) sign
-	if nextState == nil && currentChar != EndOfText {
-		nextState = s.nextStateWith(AnyChar)
-	}
-
-	result := nextState != nil && nextState.check(inputString, pos+1, true, ctx)
-	for _, state := range s.transitions[EpsilonChar] {
-		// we need to evaluate all the epsilon transitions
-		// because there's a chance that we'll finish early
-		// while there's still more to process
-		result = state.check(inputString, pos, true, ctx) || result
-		result = (currentChar == StartOfText && state.check(inputString, pos+1, true, ctx)) || result
-	}
-
-	if result {
-		return true
-	}
-
-	if !started && pos+1 < len(inputString) {
-		return s.check(inputString, pos+1, false, ctx)
-	}
-
-	return false
-}
-
-func Check(regexString string, inputString string) Result {
+// Compile compiles the given regex string
+func Compile(regexString string) *State {
 	parseContext := parsingContext{
 		pos:            0,
 		tokens:         []regexToken{},
 		capturedGroups: map[string]bool{},
 	}
 	regex(regexString, &parseContext)
-	nfaEntry := toNfa(&parseContext)
+	return toNfa(&parseContext)
+}
 
+// Test checks if the given input string conforms to this NFA
+func (s *State) Test(inputString string) Result {
 	checkContext := &regexCheckContext{
 		groups: map[string]*capture{},
 	}
-	result := nfaEntry.check(inputString, -1, nfaEntry.startOfText, checkContext)
+
+	result := s.check(inputString, -1, s.startOfText, checkContext)
 
 	// prepare the result
 	groups := map[string]string{}
 
 	if result {
 		// extract strings from the groups
-		for group, captured := range checkContext.groups {
-			groups[group] = captured.string(inputString)
+		for groupName, captured := range checkContext.groups {
+			groups[groupName] = captured.string(inputString)
 		}
 	}
 
@@ -146,31 +35,7 @@ func Check(regexString string, inputString string) Result {
 	}
 }
 
-type Result struct {
-	matches bool
-	groups  map[string]string
-}
-
-type capture struct {
-	start int
-	end   int
-}
-
-func (c *capture) string(inputString string) string {
-	s := c.start
-	e := c.end
-
-	if s < 0 {
-		s = 0
-	}
-
-	if e > len(inputString) || e == -1 {
-		e = len(inputString)
-	}
-
-	return inputString[s:e]
-}
-
-type regexCheckContext struct {
-	groups map[string]*capture
+// Check compiles the regexString and tests the inputString against it
+func Check(regexString string, inputString string) Result {
+	return Compile(regexString).Test(inputString)
 }

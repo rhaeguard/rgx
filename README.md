@@ -9,8 +9,11 @@ a very simple regex engine written in go.
 - [x] `^` beginning of the string
 - [x] `$` end of the string
 - [x] `.` any single character/wildcard
-- [x] `[ ]` bracket notation/ranges
-- [x] `[^ ]` bracket negation notation
+- [ ] bracket notation
+  - [x] `[ ]` bracket notation/ranges
+  - [x] `[^ ]` bracket negation notation
+  - [ ] better handling of the bracket expressions: e.g., `[ab-exy12]`
+  - [ ] special characters in the bracket
 - [x] quantifiers
   - [x] `*` none or more times
   - [x] `+` one or more times

@@ -195,6 +195,11 @@ func parseBracket(regexString string, memory *parsingContext) {
 	memory.tokens = append(memory.tokens, token)
 }
 
+type groupTokenPayload struct {
+	tokens []regexToken
+	name   string
+}
+
 func parseGroup(regexString string, memory *parsingContext) {
 	groupContext := parsingContext{
 		pos:    memory.loc(),
@@ -223,7 +228,10 @@ func parseGroup(regexString string, memory *parsingContext) {
 
 	token := regexToken{
 		tokenType: Group,
-		value:     []interface{}{groupContext.tokens, groupName},
+		value: groupTokenPayload{
+			tokens: groupContext.tokens,
+			name:   groupName,
+		},
 	}
 	memory.push(token)
 	memory.advTo(groupContext.loc())

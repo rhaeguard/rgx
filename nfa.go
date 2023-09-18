@@ -108,22 +108,21 @@ func tokenToNfa(token regexToken, memory *parsingContext, startFrom *State) (*St
 
 		return startFrom, to
 	case Group:
-		v := token.value.([]interface{})
-		values := v[0].([]regexToken)
+		v := token.value.(groupTokenPayload)
 
 		// concatenate all the elements in the group
-		start, end := tokenToNfa(values[0], memory, &State{
+		start, end := tokenToNfa(v.tokens[0], memory, &State{
 			transitions: map[uint8][]*State{},
 		})
 
-		for i := 1; i < len(values); i++ {
-			_, endNext := tokenToNfa(values[i], memory, end)
+		for i := 1; i < len(v.tokens); i++ {
+			_, endNext := tokenToNfa(v.tokens[i], memory, end)
 			end = endNext
 		}
 		// concatenation ends
 
 		groupNameNumeric := fmt.Sprintf("%d", memory.nextGroup())
-		groupNameUserSet := v[1].(string)
+		groupNameUserSet := v.name
 
 		groupNames := []string{groupNameNumeric}
 		memory.capturedGroups[groupNameNumeric] = true
