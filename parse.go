@@ -121,10 +121,12 @@ func isDot(ch uint8) bool {
 	return ch == '.'
 }
 
-var quantifiers = map[uint8]regexTokenType{
-	'*': NoneOrMore,
-	'+': OneOrMore,
-	'?': Optional,
+const QuantifierInfinity = -1
+
+var quantifiers = map[uint8][]int{
+	'*': {0, QuantifierInfinity},
+	'+': {1, QuantifierInfinity},
+	'?': {0, 1},
 }
 
 func isQuantifier(ch uint8) bool {
@@ -256,9 +258,14 @@ func parseGroupUncaptured(regexString string, memory *parsingContext) {
 }
 
 func parseQuantifier(ch uint8, memory *parsingContext) {
+	bounds := quantifiers[ch]
 	token := regexToken{
-		tokenType: quantifiers[ch],
-		value:     memory.getLast(1),
+		tokenType: Quantifier,
+		value: quantifier{
+			min:   bounds[0],
+			max:   bounds[1],
+			value: memory.getLast(1),
+		},
 	}
 	memory.removeLast(1)
 	memory.push(token)
@@ -305,7 +312,7 @@ func processChar(regexString string, memory *parsingContext, ch uint8) {
 			}
 		}
 
-		memory.advTo(endPos + 1)
+		memory.advTo(endPos)
 
 		token := regexToken{
 			tokenType: Quantifier,

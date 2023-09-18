@@ -84,7 +84,7 @@ func tokenToNfa(token regexToken, memory *parsingContext, startFrom *State) (*St
 		}
 		startFrom.transitions[value] = append(startFrom.transitions[value], to)
 		return startFrom, to
-	case OneOrMore, NoneOrMore, Optional, Quantifier:
+	case Quantifier:
 		return handleQuantifierToToken(token, memory, startFrom)
 	case Wildcard:
 		to := &State{
@@ -234,28 +234,11 @@ func tokenToNfa(token regexToken, memory *parsingContext, startFrom *State) (*St
 }
 
 func handleQuantifierToToken(token regexToken, memory *parsingContext, startFrom *State) (*State, *State) {
+	payload := token.value.(quantifier)
 	// the minimum amount of time the NFA needs to repeat
-	var min int
+	min := payload.min
 	// the maximum amount of time the NFA needs to repeat
-	var max int
-
-	const Infinity = -1
-
-	switch token.tokenType {
-	case OneOrMore:
-		min = 1
-		max = Infinity
-	case NoneOrMore:
-		min = 0
-		max = Infinity
-	case Optional:
-		min = 0
-		max = 1
-	case Quantifier:
-		payload := token.value.(quantifier)
-		min = payload.min
-		max = payload.max
-	}
+	max := payload.max
 
 	to := &State{
 		transitions: map[uint8][]*State{},
@@ -265,9 +248,10 @@ func handleQuantifierToToken(token regexToken, memory *parsingContext, startFrom
 		startFrom.transitions[EpsilonChar] = append(startFrom.transitions[EpsilonChar], to)
 	}
 
+	// how many times should the NFA be generated in the bigger state machine
 	var total int
 
-	if max != Infinity {
+	if max != QuantifierInfinity {
 		total = max
 	} else {
 		if min == 0 {
@@ -309,7 +293,7 @@ func handleQuantifierToToken(token regexToken, memory *parsingContext, startFrom
 	}
 
 	previousEnd.transitions[EpsilonChar] = append(previousEnd.transitions[EpsilonChar], to)
-	if max == Infinity {
+	if max == QuantifierInfinity {
 		to.transitions[EpsilonChar] = append(to.transitions[EpsilonChar], previousStart)
 	}
 	return startFrom, to

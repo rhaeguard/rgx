@@ -106,6 +106,20 @@ func TestCheck(t *testing.T) {
 		{"(?<anim>cat)-\\k<anim>", "nonsensedog-cat-cat-dognonsense", true},
 		{"(?<letter>[cxv])-[a-z]+-\\k<letter>", "c-abcd-c", true},
 		{"(?<letter>[cxv])-[a-z]+-\\k<letter>", "c-abcd-d", false},
+		// quantifier
+		{"(hi){2,3}", "hi hihi hihi", true},
+		{`ab{0,}bc`, `abbbbc`, true},
+		{`ab{1,}bc`, `abq`, false},
+		{`ab{1,}bc`, `abbbbc`, true},
+		{`ab{1,3}bc`, `abbbbc`, true},
+		{`ab{3,4}bc`, `abbbbc`, true},
+		{`ab{4,5}bc`, `abbbbc`, false},
+		{`ab{0,1}bc`, `abc`, true},
+		{`ab{0,1}c`, `abc`, true},
+		{`a{1,}b{1,}c`, `aabbabc`, true},
+		{`(a+|b){0,}`, `ab`, true},
+		{`(a+|b){1,}`, `ab`, true},
+		{`(a+|b){0,1}`, `ab`, true},
 	}
 
 	for _, test := range data {
@@ -135,6 +149,18 @@ func TestCheckForDev(t *testing.T) {
 		//{"([0-9])\\1", "hi22", true},
 		//{"he(ya)*o", "heo", true},
 		{"(hi){2,3}", "hi hihi hihi", true},
+		{`ab{0,}bc`, `abbbbc`, true},
+		{`ab{1,}bc`, `abq`, false},
+		{`ab{1,}bc`, `abbbbc`, true},
+		{`ab{1,3}bc`, `abbbbc`, true},
+		{`ab{3,4}bc`, `abbbbc`, true},
+		{`ab{4,5}bc`, `abbbbc`, false},
+		{`ab{0,1}bc`, `abc`, true},
+		{`ab{0,1}c`, `abc`, true},
+		{`a{1,}b{1,}c`, `aabbabc`, true},
+		{`(a+|b){0,}`, `ab`, true},
+		{`(a+|b){1,}`, `ab`, true},
+		{`(a+|b){0,1}`, `ab`, true},
 	}
 
 	for _, test := range data {
