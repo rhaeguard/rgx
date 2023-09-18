@@ -8,5 +8,6 @@ These are the resources I've consulted while writing the code
 - https://regex101.com/
 - https://en.wikipedia.org/wiki/Thompson%27s_construction
 - https://github.com/python/cpython/blob/main/Lib/test/re_tests.py
+- https://learn.microsoft.com/en-us/dotnet/standard/base-types/regular-expressions
 
 While my own implementation isn't using the techniques described in above resources, it's still a good idea to take a look at them.
