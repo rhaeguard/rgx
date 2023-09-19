@@ -142,7 +142,7 @@ func parseBracket(regexString string, memory *parsingContext) {
 		tokenType = Bracket
 	}
 
-	for regexString[memory.loc()] != ']' {
+	for memory.loc() < len(regexString) && regexString[memory.loc()] != ']' {
 		ch := regexString[memory.loc()]
 
 		if ch == '-' {
@@ -163,6 +163,12 @@ func parseBracket(regexString string, memory *parsingContext) {
 					pieces = append(pieces, fmt.Sprintf("%c", ch))
 				}
 			}
+		} else if ch == '\\' {
+			nextChar := regexString[memory.adv()] // TODO: this might fail if we are at the end of the string
+			// TODO: some characters are special: \a does not just mean a, it means alarm ascii char etc.
+			// TODO: maybe in future, I'll implement that as well
+			// TODO: for now, all the escaped characters will be treated as literals
+			pieces = append(pieces, fmt.Sprintf("%c", nextChar))
 		} else {
 			pieces = append(pieces, fmt.Sprintf("%c", ch))
 		}
@@ -339,7 +345,7 @@ func processChar(regexString string, memory *parsingContext, ch uint8) {
 		}
 		memory.removeLast(1)
 		memory.push(token)
-	} else if ch == '\\' { // backslash
+	} else if ch == '\\' { // escaped backslash
 		parseBackslash(regexString, memory)
 	} else if isLiteral(ch) {
 		parseLiteral(ch, memory)
@@ -385,9 +391,25 @@ func processChar(regexString string, memory *parsingContext, ch uint8) {
 	}
 }
 
+var mustBeEscapedCharacters = map[uint8]bool{
+	'[':  true,
+	'\\': true,
+	'^':  true,
+	'$':  true,
+	'.':  true,
+	'|':  true,
+	'?':  true,
+	'*':  true,
+	'+':  true,
+	'(':  true,
+	')':  true,
+	'{':  true,
+	'}':  true,
+}
+
 func parseBackslash(regexString string, memory *parsingContext) {
 	nextChar := regexString[memory.loc()+1]
-	if isNumeric(nextChar) { // \0 should be illegal
+	if isNumeric(nextChar) { // cares about the next single digit
 		token := regexToken{
 			tokenType: Backreference,
 			value:     fmt.Sprintf("%c", nextChar),
@@ -411,8 +433,15 @@ func parseBackslash(regexString string, memory *parsingContext) {
 		} else {
 			panic("invalid backreference syntax")
 		}
+	} else if _, canBeEscaped := mustBeEscapedCharacters[nextChar]; canBeEscaped {
+		token := regexToken{
+			tokenType: Literal,
+			value:     nextChar,
+		}
+		memory.push(token)
+		memory.adv()
 	} else {
-		panic("cannot process escape chars yet")
+		panic("")
 	}
 }
 

@@ -64,6 +64,7 @@ func TestCheck(t *testing.T) {
 		{"199[0-3]", "1991", true},
 		{"199[0-3]", "1992", true},
 		{"199[0-3]", "1993", true},
+		{"[0-c-^[_$hello]", "heo", true},
 		// brackets and ranges with negation
 		{"h[^ae-ux]llo", "hello", false},
 		{"h[^ae-ux]llo", "hallo", false},
@@ -120,6 +121,9 @@ func TestCheck(t *testing.T) {
 		{`(a+|b){0,}`, `ab`, true},
 		{`(a+|b){1,}`, `ab`, true},
 		{`(a+|b){0,1}`, `ab`, true},
+		// escape chars
+		{`\\\^\$\.\|\?\*\+\(\)\{\}-hello`, `\^$.|?*+(){}-hello`, true},
+		{`[[\]-]+`, `]-[]-[]-[[]]--[]`, true},
 	}
 
 	for _, test := range data {
@@ -138,7 +142,8 @@ func TestCheckForDev(t *testing.T) {
 		regexString, input string
 		expected           bool
 	}{
-		{"[0-c-^[_$hello]", "heo", true},
+		//{`[[\]-]+$`, `]-[]-[]-[[]]--[]\`, true},
+		{`[[\]-]+`, `]-[]-[]-[[]]--[]`, false},
 	}
 
 	for _, test := range data {
