@@ -12,8 +12,9 @@ a very simple regex engine written in go.
 - [ ] bracket notation
   - [x] `[ ]` bracket notation/ranges
   - [x] `[^ ]` bracket negation notation
-  - [ ] better handling of the bracket expressions: e.g., `[ab-exy12]`
-  - [ ] special characters in the bracket
+  - [x] better handling of the bracket expressions: e.g., `[ab-exy12]`
+  - [x] special characters in the bracket
+    - [ ] support escape character
 - [x] quantifiers
   - [x] `*` none or more times
   - [x] `+` one or more times

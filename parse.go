@@ -146,22 +146,33 @@ func parseBracket(regexString string, memory *parsingContext) {
 		ch := regexString[memory.loc()]
 
 		if ch == '-' {
-			prevChar := pieces[len(pieces)-1][0] // TODO: maybe do smth better?
-			nextChar := regexString[memory.adv()]
-			bothNumeric := isNumeric(prevChar) && isNumeric(nextChar)
-			bothLowercase := isAlphabetLowercase(prevChar) && isAlphabetLowercase(nextChar)
-			bothUppercase := isAlphabetUppercase(prevChar) && isAlphabetUppercase(nextChar)
-			if bothNumeric || bothLowercase || bothUppercase {
-				pieces[len(pieces)-1] = fmt.Sprintf("%c%c", prevChar, nextChar)
+			nextChar := regexString[memory.adv()] // TODO: this might fail if we are at the end of the string
+			// if - is the first character OR is the last character, it's a literal
+			if len(pieces) == 0 || nextChar == ']' {
+				pieces = append(pieces, fmt.Sprintf("%c", ch))
 			} else {
-				panic(fmt.Sprintf("'%c-%c' range is invalid", prevChar, nextChar))
+				piece := pieces[len(pieces)-1]
+				if len(piece) == 1 {
+					prevChar := piece[0]
+					if prevChar <= nextChar {
+						pieces[len(pieces)-1] = fmt.Sprintf("%c%c", prevChar, nextChar)
+					} else {
+						panic(fmt.Sprintf("'%c-%c' range is invalid", prevChar, nextChar))
+					}
+				} else {
+					pieces = append(pieces, fmt.Sprintf("%c", ch))
+				}
 			}
 		} else {
 			pieces = append(pieces, fmt.Sprintf("%c", ch))
 		}
-
 		memory.adv()
 	}
+
+	if len(pieces) == 0 {
+		panic(fmt.Sprintf("bracket should not be empty"))
+	}
+
 	var uniqueCharacterPieces []string
 	for _, piece := range pieces {
 		if !sliceContains(uniqueCharacterPieces, piece) {

@@ -26,10 +26,10 @@ type State struct {
 }
 
 const (
-	StartOfText = 1 // ascii: null char
-	EndOfText   = 2 // ascii: end of text
-	AnyChar     = 3 // ascii: substitute
-	EpsilonChar = 0 // ascii: null char
+	EpsilonChar = 0
+	StartOfText = 1
+	EndOfText   = 2
+	AnyChar     = 3
 )
 
 func toNfa(memory *parsingContext) *State {

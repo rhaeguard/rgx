@@ -100,12 +100,12 @@ func TestCheck(t *testing.T) {
 		{"(ha$|^hi)", "ahaa", false},
 		{"(ha$|^hi)", "ahii", false},
 		// capturing groups, numeric groups and named groups
-		{"([0-9])\\1?hi", "h2hi", true},
-		{"([0-9])([a-d](hello))\\1", "bazoo23", false},
-		{"(dog)-(cat)-\\2-\\1", "nonsensedog-cat-cat-dognonsense", true},
-		{"(?<anim>cat)-\\k<anim>", "nonsensedog-cat-cat-dognonsense", true},
-		{"(?<letter>[cxv])-[a-z]+-\\k<letter>", "c-abcd-c", true},
-		{"(?<letter>[cxv])-[a-z]+-\\k<letter>", "c-abcd-d", false},
+		{`([0-9])\1?hi`, "h2hi", true},
+		{`([0-9])([a-d](hello))\1`, "bazoo23", false},
+		{`(dog)-(cat)-\2-\1`, "nonsensedog-cat-cat-dognonsense", true},
+		{`(?<anim>cat)-\k<anim>`, "nonsensedog-cat-cat-dognonsense", true},
+		{`(?<letter>[cxv])-[a-z]+-\k<letter>`, "c-abcd-c", true},
+		{`(?<letter>[cxv])-[a-z]+-\k<letter>`, "c-abcd-d", false},
 		// quantifiers
 		{"(hi){2,3}", "hi hihi hihi", true},
 		{`ab{0,}bc`, `abbbbc`, true},
@@ -138,7 +138,7 @@ func TestCheckForDev(t *testing.T) {
 		regexString, input string
 		expected           bool
 	}{
-		{"he(ya)*o", "heo", true},
+		{"[0-c-^[_$hello]", "heo", true},
 	}
 
 	for _, test := range data {
