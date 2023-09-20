@@ -50,13 +50,7 @@ func (s *State) check(inputString string, pos int, started bool, ctx *regexCheck
 					ctx.groups[groupName] = c
 				}
 			}
-		}
-	}
 
-	if s.groups != nil {
-		// if this state has groups associated with it
-		// go through each group
-		for _, capturedGroup := range s.groups {
 			// if the group ends
 			if capturedGroup.end {
 				// for each name of the captured group

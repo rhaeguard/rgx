@@ -24,6 +24,7 @@ a very simple regex engine written in go.
   - [x] `( )` capturing group or subexpression
   - [x] `\n` backreference, e.g, `(dog)\1` where `n` is in `[0, 9]`
   - [x] `\k<name>` named backreference, e.g, `(?<animal>dog)\k<animal>`
+  - [x] extracting the string that matches with the regex
 - [x] `\` escape character
   - [x] support special characters - context dependant
 - [ ] better error handling in the API

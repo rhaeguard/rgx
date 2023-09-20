@@ -138,6 +138,35 @@ func TestCheck(t *testing.T) {
 	}
 }
 
+func TestFindMatches(t *testing.T) {
+	var data = []struct {
+		regexString, input string
+		expected           []map[string]string
+	}{
+		{`[0-9]{3}-[0-9]{3}-[0-9]{2}-[0-9]{2}`, `hi 123-678-99-32 is my number, so is 239-987-63-21.`, []map[string]string{
+			{"0": "123-678-99-32"},
+			{"0": "239-987-63-21"},
+		}},
+	}
+
+	for _, test := range data {
+		testName := fmt.Sprintf("%s-%s-%v", test.regexString, test.input, test.expected)
+		t.Run(testName, func(t *testing.T) {
+			results := Compile(test.regexString).FindMatches(test.input)
+			if len(results) != len(test.expected) {
+				t.Fail()
+			}
+			for i, expected := range test.expected {
+				for k, v := range expected {
+					if results[i].groups[k] != v {
+						t.Fail()
+					}
+				}
+			}
+		})
+	}
+}
+
 func TestCheckForDev(t *testing.T) {
 	var data = []struct {
 		regexString, input string

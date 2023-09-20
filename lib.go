@@ -35,6 +35,40 @@ func (s *State) Test(inputString string) Result {
 	}
 }
 
+func (s *State) FindMatches(inputString string) []Result {
+	var results []Result
+	start := -1
+	for start < len(inputString) {
+		checkContext := &regexCheckContext{
+			groups: map[string]*capture{},
+		}
+		result := s.check(inputString, start, s.startOfText, checkContext)
+		if !result {
+			break
+		}
+		// prepare the result
+		groups := map[string]string{}
+
+		if result {
+			// extract strings from the groups
+			for groupName, captured := range checkContext.groups {
+				groups[groupName] = captured.string(inputString)
+				if groupName == "0" {
+					start = captured.end + 1
+				}
+			}
+		}
+
+		r := Result{
+			matches: result,
+			groups:  groups,
+		}
+
+		results = append(results, r)
+	}
+	return results
+}
+
 // Check compiles the regexString and tests the inputString against it
 func Check(regexString string, inputString string) Result {
 	return Compile(regexString).Test(inputString)
