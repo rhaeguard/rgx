@@ -62,12 +62,11 @@ func (p *parsingContext) push(token regexToken) {
 	p.tokens = append(p.tokens, token)
 }
 
-func (p *parsingContext) getLast(count int) []regexToken {
-	return p.tokens[len(p.tokens)-count:]
-}
-
-func (p *parsingContext) removeLast(count int) {
+// removeLast pops the last count number of elements and returns the popped elements
+func (p *parsingContext) removeLast(count int) []regexToken {
+	elementsToBeRemoved := p.tokens[len(p.tokens)-count:]
 	p.tokens = append([]regexToken{}, p.tokens[:len(p.tokens)-count]...)
+	return elementsToBeRemoved
 }
 
 func isAlphabetUppercase(ch uint8) bool {
@@ -83,23 +82,39 @@ func isNumeric(ch uint8) bool {
 }
 
 var specialChars = map[uint8]bool{
-	'&': true,
-	'*': true,
-	' ': true,
-	//'{': true,
-	//'}': true,
-	'[': true,
-	']': true,
-	'(': true,
-	')': true,
-	',': true,
-	'=': true,
-	'-': true,
-	//'.':  true,
-	'+': true,
-	';': true,
-	//'\'': true,
-	'/': true,
+	'&':  true,
+	'*':  true,
+	' ':  true,
+	'{':  true,
+	'}':  true,
+	'[':  true,
+	']':  true,
+	'(':  true,
+	')':  true,
+	',':  true,
+	'=':  true,
+	'-':  true,
+	'.':  true,
+	'+':  true,
+	';':  true,
+	'\\': true,
+	'/':  true,
+}
+
+var mustBeEscapedCharacters = map[uint8]bool{
+	'[':  true,
+	'\\': true,
+	'^':  true,
+	'$':  true,
+	'.':  true,
+	'|':  true,
+	'?':  true,
+	'*':  true,
+	'+':  true,
+	'(':  true,
+	')':  true,
+	'{':  true,
+	'}':  true,
 }
 
 func isSpecialChar(ch uint8) bool {
@@ -114,20 +129,20 @@ func isLiteral(ch uint8) bool {
 		isSpecialChar(ch)
 }
 
-func isDot(ch uint8) bool {
+func isWildcard(ch uint8) bool {
 	return ch == '.'
 }
 
 const QuantifierInfinity = -1
 
-var quantifiers = map[uint8][]int{
+var quantifiersWithBounds = map[uint8][]int{
 	'*': {0, QuantifierInfinity},
 	'+': {1, QuantifierInfinity},
 	'?': {0, 1},
 }
 
 func isQuantifier(ch uint8) bool {
-	_, ok := quantifiers[ch]
+	_, ok := quantifiersWithBounds[ch]
 	return ok
 }
 
@@ -146,11 +161,12 @@ func parseBracket(regexString string, memory *parsingContext) {
 		ch := regexString[memory.loc()]
 
 		if ch == '-' {
-			nextChar := regexString[memory.adv()] // TODO: this might fail if we are at the end of the string
+			nextChar := regexString[memory.loc()+1] // TODO: this might fail if we are at the end of the string
 			// if - is the first character OR is the last character, it's a literal
 			if len(pieces) == 0 || nextChar == ']' {
 				pieces = append(pieces, fmt.Sprintf("%c", ch))
 			} else {
+				memory.adv() // to process the nextChar's position
 				piece := pieces[len(pieces)-1]
 				if len(piece) == 1 {
 					prevChar := piece[0]
@@ -280,16 +296,15 @@ func parseGroupUncaptured(regexString string, memory *parsingContext) {
 }
 
 func parseQuantifier(ch uint8, memory *parsingContext) {
-	bounds := quantifiers[ch]
+	bounds := quantifiersWithBounds[ch]
 	token := regexToken{
 		tokenType: Quantifier,
 		value: quantifier{
 			min:   bounds[0],
 			max:   bounds[1],
-			value: memory.getLast(1),
+			value: memory.removeLast(1),
 		},
 	}
-	memory.removeLast(1)
 	memory.push(token)
 }
 
@@ -311,72 +326,39 @@ func processChar(regexString string, memory *parsingContext, ch uint8) {
 	} else if isQuantifier(ch) {
 		parseQuantifier(ch, memory)
 	} else if ch == '{' {
-		startPos := memory.adv()
-		var endPos = memory.loc()
-		for regexString[endPos] != '}' {
-			endPos++
-		}
-		memory.advTo(endPos)
-		expr := regexString[startPos:endPos]
-		pieces := strings.Split(expr, ",")
-
-		var start int
-		var end int
-
-		if len(pieces) == 1 {
-			start, _ = strconv.Atoi(pieces[0])
-			end = start
-		} else if len(pieces) == 2 {
-			start, _ = strconv.Atoi(pieces[0])
-			if pieces[1] == "" {
-				end = QuantifierInfinity
-			} else {
-				end, _ = strconv.Atoi(pieces[1])
-			}
-		}
-
-		token := regexToken{
-			tokenType: Quantifier,
-			value: quantifier{
-				min:   start,
-				max:   end,
-				value: memory.getLast(1),
-			},
-		}
-		memory.removeLast(1)
-		memory.push(token)
+		parseBoundedQuantifier(regexString, memory)
 	} else if ch == '\\' { // escaped backslash
 		parseBackslash(regexString, memory)
-	} else if isLiteral(ch) {
-		parseLiteral(ch, memory)
-	} else if isDot(ch) {
+	} else if isWildcard(ch) {
 		token := regexToken{
 			tokenType: Wildcard,
 			value:     ch,
 		}
 		memory.push(token)
+	} else if isLiteral(ch) {
+		parseLiteral(ch, memory)
 	} else if ch == '|' {
 		// everything to the left of the pipe in this specific "parsingContext"
 		// is considered as the left side of the OR
 		left := regexToken{
 			tokenType: GroupUncaptured,
-			value:     memory.getLast(len(memory.tokens)),
+			value:     memory.removeLast(len(memory.tokens)),
 		}
 
 		memory.adv() // to not get stuck in the pipe char
 		parseGroupUncaptured(regexString, memory)
-		right := memory.getLast(1)[0] // TODO: better error handling?
+		right := memory.removeLast(1)[0] // TODO: better error handling?
 
 		// clear the memory as we do not need
 		// any of these tokens anymore
-		memory.removeLast(len(memory.tokens))
+		//memory.removeLast(len(memory.tokens))
 
 		token := regexToken{
 			tokenType: Or,
 			value:     []regexToken{left, right},
 		}
 		memory.push(token)
-	} else if ch == '^' || ch == '$' {
+	} else if ch == '^' || ch == '$' { // anchors
 		var tokenType = regexTokenType(TextBeginning)
 
 		if ch == '$' {
@@ -391,20 +373,40 @@ func processChar(regexString string, memory *parsingContext, ch uint8) {
 	}
 }
 
-var mustBeEscapedCharacters = map[uint8]bool{
-	'[':  true,
-	'\\': true,
-	'^':  true,
-	'$':  true,
-	'.':  true,
-	'|':  true,
-	'?':  true,
-	'*':  true,
-	'+':  true,
-	'(':  true,
-	')':  true,
-	'{':  true,
-	'}':  true,
+func parseBoundedQuantifier(regexString string, memory *parsingContext) {
+	startPos := memory.adv()
+	var endPos = memory.loc()
+	for regexString[endPos] != '}' {
+		endPos++
+	}
+	memory.advTo(endPos)
+	expr := regexString[startPos:endPos]
+	pieces := strings.Split(expr, ",")
+
+	var start int
+	var end int
+
+	if len(pieces) == 1 {
+		start, _ = strconv.Atoi(pieces[0])
+		end = start
+	} else if len(pieces) == 2 {
+		start, _ = strconv.Atoi(pieces[0])
+		if pieces[1] == "" {
+			end = QuantifierInfinity
+		} else {
+			end, _ = strconv.Atoi(pieces[1])
+		}
+	}
+
+	token := regexToken{
+		tokenType: Quantifier,
+		value: quantifier{
+			min:   start,
+			max:   end,
+			value: memory.removeLast(1),
+		},
+	}
+	memory.push(token)
 }
 
 func parseBackslash(regexString string, memory *parsingContext) {
@@ -441,7 +443,7 @@ func parseBackslash(regexString string, memory *parsingContext) {
 		memory.push(token)
 		memory.adv()
 	} else {
-		panic("")
+		panic("unimplemented")
 	}
 }
 

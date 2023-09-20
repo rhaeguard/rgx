@@ -124,6 +124,7 @@ func TestCheck(t *testing.T) {
 		// escape chars
 		{`\\\^\$\.\|\?\*\+\(\)\{\}-hello`, `\^$.|?*+(){}-hello`, true},
 		{`[[\]-]+`, `]-[]-[]-[[]]--[]`, true},
+		{`[[\]-]+$`, `]-[]-[]-[[]]--[]\`, false},
 	}
 
 	for _, test := range data {
@@ -142,8 +143,7 @@ func TestCheckForDev(t *testing.T) {
 		regexString, input string
 		expected           bool
 	}{
-		//{`[[\]-]+$`, `]-[]-[]-[[]]--[]\`, true},
-		{`[[\]-]+`, `]-[]-[]-[[]]--[]`, false},
+		{`[[\]-]+$`, `]-[]-[]-[[]]--[]`, true},
 	}
 
 	for _, test := range data {
