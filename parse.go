@@ -33,6 +33,11 @@ type quantifier struct {
 	value interface{}
 }
 
+type groupTokenPayload struct {
+	tokens []regexToken
+	name   string
+}
+
 type parsingContext struct {
 	pos            int
 	tokens         []regexToken
@@ -195,30 +200,19 @@ func parseBracket(regexString string, memory *parsingContext) {
 		panic(fmt.Sprintf("bracket should not be empty"))
 	}
 
-	var uniqueCharacterPieces []string
+	uniqueCharacterPieces := map[uint8]bool{}
 	for _, piece := range pieces {
-		if !sliceContains(uniqueCharacterPieces, piece) {
-			uniqueCharacterPieces = append(uniqueCharacterPieces, piece)
+		for s := piece[0]; s <= piece[len(piece)-1]; s++ {
+			uniqueCharacterPieces[s] = true
 		}
 	}
 
 	var finalTokens []regexToken
-	for _, piece := range uniqueCharacterPieces {
-		if len(piece) == 1 {
-			finalTokens = append(finalTokens, regexToken{
-				tokenType: Literal,
-				value:     piece[0],
-			})
-		} else if len(piece) == 2 {
-			for s := piece[0]; s <= piece[1]; s++ {
-				finalTokens = append(finalTokens, regexToken{
-					tokenType: Literal,
-					value:     s,
-				})
-			}
-		} else {
-			panic("piece must have max 2 characters")
-		}
+	for ch := range uniqueCharacterPieces {
+		finalTokens = append(finalTokens, regexToken{
+			tokenType: Literal,
+			value:     ch,
+		})
 	}
 
 	token := regexToken{
@@ -226,11 +220,6 @@ func parseBracket(regexString string, memory *parsingContext) {
 		value:     finalTokens,
 	}
 	memory.tokens = append(memory.tokens, token)
-}
-
-type groupTokenPayload struct {
-	tokens []regexToken
-	name   string
 }
 
 func parseGroup(regexString string, memory *parsingContext) {
@@ -418,7 +407,7 @@ func parseBackslash(regexString string, memory *parsingContext) {
 		}
 		memory.push(token)
 		memory.adv()
-	} else if nextChar == 'k' {
+	} else if nextChar == 'k' { // \k<name> reference
 		memory.adv()
 		if regexString[memory.adv()] == '<' {
 			groupName := ""

@@ -9,15 +9,6 @@ func name(s *State) string {
 	return fmt.Sprintf("a%p", s)
 }
 
-func sliceContains(slice []string, element string) bool {
-	for _, el := range slice {
-		if el == element {
-			return true
-		}
-	}
-	return false
-}
-
 func dumpDotGraphForRegex(regexString string) {
 	memory := parsingContext{
 		pos:            0,
