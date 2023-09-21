@@ -9,7 +9,7 @@ a very simple regex engine written in go.
 - [x] `^` beginning of the string
 - [x] `$` end of the string
 - [x] `.` any single character/wildcard
-- [ ] bracket notation
+- [x] bracket notation
   - [x] `[ ]` bracket notation/ranges
   - [x] `[^ ]` bracket negation notation
   - [x] better handling of the bracket expressions: e.g., `[ab-exy12]`
