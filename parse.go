@@ -9,17 +9,17 @@ import (
 type regexTokenType uint8
 
 const (
-	Literal         regexTokenType = iota // any literal character, e.g., a, b, 1, 2, etc.
-	Or                             = iota // |
-	Bracket                        = iota // []
-	BracketNot                     = iota // [^]
-	Group                          = iota // ()
-	GroupUncaptured                = iota // logical group
-	Wildcard                       = iota // .
-	TextBeginning                  = iota // ^
-	TextEnd                        = iota // $
-	Backreference                  = iota // $
-	Quantifier                     = iota // {m,n} or {m,}, {m}
+	literal         regexTokenType = iota // any literal character, e.g., a, b, 1, 2, etc.
+	or                             = iota // |
+	bracket                        = iota // []
+	bracketNot                     = iota // [^]
+	groupCaptured                  = iota // ()
+	groupUncaptured                = iota // logical group
+	wildcard                       = iota // .
+	textBeginning                  = iota // ^
+	textEnd                        = iota // $
+	backReference                  = iota // $
+	quantifier                     = iota // {m,n} or {m,}, {m}
 )
 
 type regexToken struct {
@@ -27,7 +27,7 @@ type regexToken struct {
 	value     interface{}
 }
 
-type quantifier struct {
+type quantifierPayload struct {
 	min   int
 	max   int
 	value interface{}
@@ -138,11 +138,11 @@ func isWildcard(ch uint8) bool {
 	return ch == '.'
 }
 
-const QuantifierInfinity = -1
+const quantifierInfinity = -1
 
 var quantifiersWithBounds = map[uint8][]int{
-	'*': {0, QuantifierInfinity},
-	'+': {1, QuantifierInfinity},
+	'*': {0, quantifierInfinity},
+	'+': {1, quantifierInfinity},
 	'?': {0, 1},
 }
 
@@ -156,10 +156,10 @@ func parseBracket(regexString string, memory *parsingContext) *RegexError {
 	var tokenType regexTokenType
 
 	if regexString[memory.loc()] == '^' {
-		tokenType = BracketNot
+		tokenType = bracketNot
 		memory.adv()
 	} else {
-		tokenType = Bracket
+		tokenType = bracket
 	}
 
 	for memory.loc() < len(regexString) && regexString[memory.loc()] != ']' {
@@ -218,7 +218,7 @@ func parseBracket(regexString string, memory *parsingContext) *RegexError {
 	var finalTokens []regexToken
 	for ch := range uniqueCharacterPieces {
 		finalTokens = append(finalTokens, regexToken{
-			tokenType: Literal,
+			tokenType: literal,
 			value:     ch,
 		})
 	}
@@ -273,7 +273,7 @@ func parseGroup(regexString string, memory *parsingContext) *RegexError {
 	}
 
 	token := regexToken{
-		tokenType: Group,
+		tokenType: groupCaptured,
 		value: groupTokenPayload{
 			tokens: groupContext.tokens,
 			name:   groupName,
@@ -299,7 +299,7 @@ func parseGroupUncaptured(regexString string, memory *parsingContext) *RegexErro
 	}
 
 	token := regexToken{
-		tokenType: GroupUncaptured,
+		tokenType: groupUncaptured,
 		value:     groupContext.tokens,
 	}
 	memory.push(token)
@@ -316,8 +316,8 @@ func parseGroupUncaptured(regexString string, memory *parsingContext) *RegexErro
 func parseQuantifier(ch uint8, memory *parsingContext) {
 	bounds := quantifiersWithBounds[ch]
 	token := regexToken{
-		tokenType: Quantifier,
-		value: quantifier{
+		tokenType: quantifier,
+		value: quantifierPayload{
 			min:   bounds[0],
 			max:   bounds[1],
 			value: memory.removeLast(1),
@@ -328,7 +328,7 @@ func parseQuantifier(ch uint8, memory *parsingContext) {
 
 func parseLiteral(ch uint8, memory *parsingContext) {
 	token := regexToken{
-		tokenType: Literal,
+		tokenType: literal,
 		value:     ch,
 	}
 	memory.push(token)
@@ -357,7 +357,7 @@ func processChar(regexString string, memory *parsingContext, ch uint8) *RegexErr
 		}
 	} else if isWildcard(ch) {
 		token := regexToken{
-			tokenType: Wildcard,
+			tokenType: wildcard,
 			value:     ch,
 		}
 		memory.push(token)
@@ -367,7 +367,7 @@ func processChar(regexString string, memory *parsingContext, ch uint8) *RegexErr
 		// everything to the left of the pipe in this specific "parsingContext"
 		// is considered as the left side of the OR
 		left := regexToken{
-			tokenType: GroupUncaptured,
+			tokenType: groupUncaptured,
 			value:     memory.removeLast(len(memory.tokens)),
 		}
 
@@ -378,15 +378,15 @@ func processChar(regexString string, memory *parsingContext, ch uint8) *RegexErr
 		right := memory.removeLast(1)[0] // TODO: better error handling?
 
 		token := regexToken{
-			tokenType: Or,
+			tokenType: or,
 			value:     []regexToken{left, right},
 		}
 		memory.push(token)
 	} else if ch == '^' || ch == '$' { // anchors
-		var tokenType = regexTokenType(TextBeginning)
+		var tokenType = regexTokenType(textBeginning)
 
 		if ch == '$' {
-			tokenType = TextEnd
+			tokenType = textEnd
 		}
 
 		token := regexToken{
@@ -439,7 +439,7 @@ func parseBoundedQuantifier(regexString string, memory *parsingContext) *RegexEr
 			}
 		}
 		if pieces[1] == "" {
-			end = QuantifierInfinity
+			end = quantifierInfinity
 		} else {
 			end, err = strconv.Atoi(pieces[1])
 			if err != nil {
@@ -453,8 +453,8 @@ func parseBoundedQuantifier(regexString string, memory *parsingContext) *RegexEr
 	}
 
 	token := regexToken{
-		tokenType: Quantifier,
-		value: quantifier{
+		tokenType: quantifier,
+		value: quantifierPayload{
 			min:   start,
 			max:   end,
 			value: memory.removeLast(1),
@@ -469,7 +469,7 @@ func parseBackslash(regexString string, memory *parsingContext) *RegexError {
 	nextChar := regexString[memory.loc()+1]
 	if isNumeric(nextChar) { // cares about the next single digit
 		token := regexToken{
-			tokenType: Backreference,
+			tokenType: backReference,
 			value:     fmt.Sprintf("%c", nextChar),
 		}
 		memory.push(token)
@@ -483,7 +483,7 @@ func parseBackslash(regexString string, memory *parsingContext) *RegexError {
 				groupName += fmt.Sprintf("%c", nextChar)
 			}
 			token := regexToken{
-				tokenType: Backreference,
+				tokenType: backReference,
 				value:     groupName,
 			}
 			memory.push(token)
@@ -497,7 +497,7 @@ func parseBackslash(regexString string, memory *parsingContext) *RegexError {
 		}
 	} else if _, canBeEscaped := mustBeEscapedCharacters[nextChar]; canBeEscaped {
 		token := regexToken{
-			tokenType: Literal,
+			tokenType: literal,
 			value:     nextChar,
 		}
 		memory.push(token)

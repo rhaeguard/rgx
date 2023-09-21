@@ -70,9 +70,9 @@ func dot(s *State, processedStateForDot map[string]bool) {
 
 	for char, states := range s.transitions {
 		var label string
-		if char == AnyChar {
+		if char == anyChar {
 			label = "any"
-		} else if char == EpsilonChar {
+		} else if char == epsilonChar {
 			label = "ε"
 		} else {
 			label = fmt.Sprintf("\"%c\"", char)

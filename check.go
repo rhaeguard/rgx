@@ -6,10 +6,10 @@ func getChar(input string, pos int) uint8 {
 	}
 
 	if pos >= len(input) {
-		return EndOfText
+		return endOfText
 	}
 
-	return StartOfText
+	return startOfText
 }
 
 // get the next state given the 'ch' as an input
@@ -60,7 +60,7 @@ func (s *State) check(inputString string, pos int, started bool, ctx *regexCheck
 
 	// if it needs to be the end of the text, and it isn't
 	// or if it needs to be the start of the text and it isn't
-	if (s.endOfText && currentChar != EndOfText) || (s.startOfText && currentChar != StartOfText) {
+	if (s.endOfText && currentChar != endOfText) || (s.startOfText && currentChar != startOfText) {
 		return false
 	}
 
@@ -96,17 +96,17 @@ func (s *State) check(inputString string, pos int, started bool, ctx *regexCheck
 	nextState := s.nextStateWith(currentChar)
 	// if there are no transitions for the current char as is
 	// then see if there's a transition for any char, i.e. dot (.) sign
-	if nextState == nil && currentChar != EndOfText {
-		nextState = s.nextStateWith(AnyChar)
+	if nextState == nil && currentChar != endOfText {
+		nextState = s.nextStateWith(anyChar)
 	}
 
 	result := nextState != nil && nextState.check(inputString, pos+1, true, ctx)
-	for _, state := range s.transitions[EpsilonChar] {
+	for _, state := range s.transitions[epsilonChar] {
 		// we need to evaluate all the epsilon transitions
 		// because there's a chance that we'll finish early
 		// while there's still more to process
 		result = state.check(inputString, pos, true, ctx) || result
-		result = (currentChar == StartOfText && state.check(inputString, pos+1, true, ctx)) || result
+		result = (currentChar == startOfText && state.check(inputString, pos+1, true, ctx)) || result
 	}
 
 	if result {
