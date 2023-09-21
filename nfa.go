@@ -246,7 +246,7 @@ func tokenToNfa(token regexToken, memory *parsingContext, startFrom *State) (*St
 		if _, ok := memory.capturedGroups[groupName]; !ok {
 			return nil, nil, &RegexError{
 				Code:    CompilationError,
-				Message: fmt.Sprintf("groupCaptured (%s) does not exist", groupName),
+				Message: fmt.Sprintf("Group (%s) does not exist", groupName),
 			}
 		}
 		to := &State{

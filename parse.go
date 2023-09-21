@@ -203,7 +203,7 @@ func parseBracket(regexString string, memory *parsingContext) *RegexError {
 	if len(pieces) == 0 {
 		return &RegexError{
 			Code:    SyntaxError,
-			Message: "bracket should not be empty",
+			Message: "Bracket should not be empty",
 			Pos:     memory.loc(),
 		}
 	}
@@ -248,7 +248,7 @@ func parseGroup(regexString string, memory *parsingContext) *RegexError {
 		} else {
 			return &RegexError{
 				Code:    SyntaxError,
-				Message: "groupCaptured name syntax is incorrect",
+				Message: "Group name syntax is incorrect",
 				Pos:     groupContext.loc(),
 			}
 		}
@@ -267,7 +267,7 @@ func parseGroup(regexString string, memory *parsingContext) *RegexError {
 	if regexString[groupContext.loc()] != ')' {
 		return &RegexError{
 			Code:    SyntaxError,
-			Message: "groupCaptured has not been properly closed",
+			Message: "Group has not been properly closed",
 			Pos:     groupContext.loc(),
 		}
 	}
@@ -411,7 +411,7 @@ func parseBoundedQuantifier(regexString string, memory *parsingContext) *RegexEr
 	if len(pieces) == 0 {
 		return &RegexError{
 			Code:    SyntaxError,
-			Message: "quantifier must have at least one bound",
+			Message: "Quantifier must have at least one bound",
 			Pos:     startPos,
 		}
 	}
