@@ -27,7 +27,7 @@ a very simple regex engine written in go.
   - [x] extracting the string that matches with the regex
 - [x] `\` escape character
   - [x] support special characters - context dependant
-- [ ] better error handling in the API
+- [x] better error handling in the API
 - [ ] ability to work on multi-line strings
   - [ ] `.` should not match the newline - `\n`
   - [ ] `$` should match the newline - `\n`

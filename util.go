@@ -15,8 +15,15 @@ func dumpDotGraphForRegex(regexString string) {
 		tokens:         []regexToken{},
 		capturedGroups: map[string]bool{},
 	}
-	regex(regexString, &memory)
-	nfaEntry := toNfa(&memory)
+	regexError := parse(regexString, &memory)
+	if regexError != nil {
+		panic(regexError.Error())
+	}
+
+	nfaEntry, regexError := toNfa(&memory)
+	if regexError != nil {
+		panic(regexError.Error())
+	}
 
 	fmt.Printf("digraph G {\n")
 	dot(nfaEntry, map[string]bool{})

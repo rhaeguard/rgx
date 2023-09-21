@@ -130,9 +130,12 @@ func TestCheck(t *testing.T) {
 	for _, test := range data {
 		testName := fmt.Sprintf("%s-%s-%t", test.regexString, test.input, test.expected)
 		t.Run(testName, func(t *testing.T) {
-			if test.expected != Check(test.regexString, test.input).matches {
-				_ = fmt.Errorf("test %s failed", testName)
-				t.Fail()
+			result, err := Check(test.regexString, test.input)
+			if err != nil {
+				t.Errorf(err.Error())
+			}
+			if test.expected != result.matches {
+				t.Errorf("test %s failed", testName)
 			}
 		})
 	}
@@ -152,7 +155,11 @@ func TestFindMatches(t *testing.T) {
 	for _, test := range data {
 		testName := fmt.Sprintf("%s-%s-%v", test.regexString, test.input, test.expected)
 		t.Run(testName, func(t *testing.T) {
-			results := Compile(test.regexString).FindMatches(test.input)
+			pattern, err := Compile(test.regexString)
+			if err != nil {
+				t.Errorf(err.Error())
+			}
+			results := pattern.FindMatches(test.input)
 			if len(results) != len(test.expected) {
 				t.Fail()
 			}
@@ -179,7 +186,10 @@ func TestCheckForDev(t *testing.T) {
 		testName := fmt.Sprintf("%s-%s-%t", test.regexString, test.input, test.expected)
 		t.Run(testName, func(t *testing.T) {
 			dumpDotGraphForRegex(test.regexString)
-			result := Check(test.regexString, test.input)
+			result, err := Check(test.regexString, test.input)
+			if err != nil {
+				t.Errorf(err.Error())
+			}
 			if test.expected != result.matches {
 				_ = fmt.Errorf("test %s failed", testName)
 				t.Fail()

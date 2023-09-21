@@ -151,7 +151,7 @@ func isQuantifier(ch uint8) bool {
 	return ok
 }
 
-func parseBracket(regexString string, memory *parsingContext) {
+func parseBracket(regexString string, memory *parsingContext) *RegexError {
 	var pieces []string
 	var tokenType regexTokenType
 
@@ -178,7 +178,11 @@ func parseBracket(regexString string, memory *parsingContext) {
 					if prevChar <= nextChar {
 						pieces[len(pieces)-1] = fmt.Sprintf("%c%c", prevChar, nextChar)
 					} else {
-						panic(fmt.Sprintf("'%c-%c' range is invalid", prevChar, nextChar))
+						return &RegexError{
+							Code:    SyntaxError,
+							Message: fmt.Sprintf("'%c-%c' range is invalid", prevChar, nextChar),
+							Pos:     memory.loc(),
+						}
 					}
 				} else {
 					pieces = append(pieces, fmt.Sprintf("%c", ch))
@@ -197,7 +201,11 @@ func parseBracket(regexString string, memory *parsingContext) {
 	}
 
 	if len(pieces) == 0 {
-		panic(fmt.Sprintf("bracket should not be empty"))
+		return &RegexError{
+			Code:    SyntaxError,
+			Message: "Bracket should not be empty",
+			Pos:     memory.loc(),
+		}
 	}
 
 	uniqueCharacterPieces := map[uint8]bool{}
@@ -220,9 +228,11 @@ func parseBracket(regexString string, memory *parsingContext) {
 		value:     finalTokens,
 	}
 	memory.tokens = append(memory.tokens, token)
+
+	return nil
 }
 
-func parseGroup(regexString string, memory *parsingContext) {
+func parseGroup(regexString string, memory *parsingContext) *RegexError {
 	groupContext := parsingContext{
 		pos:    memory.loc(),
 		tokens: []regexToken{},
@@ -236,16 +246,30 @@ func parseGroup(regexString string, memory *parsingContext) {
 				groupName += fmt.Sprintf("%c", ch)
 			}
 		} else {
-			panic("incomplete group structure")
+			return &RegexError{
+				Code:    SyntaxError,
+				Message: "Group name syntax is incorrect",
+				Pos:     groupContext.loc(),
+			}
 		}
 
 		groupContext.adv()
 	}
 
-	for regexString[groupContext.loc()] != ')' {
+	for groupContext.loc() < len(regexString) && regexString[groupContext.loc()] != ')' {
 		ch := regexString[groupContext.loc()]
-		processChar(regexString, &groupContext, ch)
+		if err := processChar(regexString, &groupContext, ch); err != nil {
+			return err
+		}
 		groupContext.adv()
+	}
+
+	if regexString[groupContext.loc()] != ')' {
+		return &RegexError{
+			Code:    SyntaxError,
+			Message: "Group has not been properly closed",
+			Pos:     groupContext.loc(),
+		}
 	}
 
 	token := regexToken{
@@ -257,9 +281,10 @@ func parseGroup(regexString string, memory *parsingContext) {
 	}
 	memory.push(token)
 	memory.advTo(groupContext.loc())
+	return nil
 }
 
-func parseGroupUncaptured(regexString string, memory *parsingContext) {
+func parseGroupUncaptured(regexString string, memory *parsingContext) *RegexError {
 	groupContext := parsingContext{
 		pos:    memory.loc(),
 		tokens: []regexToken{},
@@ -267,7 +292,9 @@ func parseGroupUncaptured(regexString string, memory *parsingContext) {
 
 	for groupContext.loc() < len(regexString) && regexString[groupContext.loc()] != ')' {
 		ch := regexString[groupContext.loc()]
-		processChar(regexString, &groupContext, ch)
+		if err := processChar(regexString, &groupContext, ch); err != nil {
+			return err
+		}
 		groupContext.adv()
 	}
 
@@ -282,6 +309,8 @@ func parseGroupUncaptured(regexString string, memory *parsingContext) {
 	} else if regexString[groupContext.loc()] == ')' {
 		memory.advTo(groupContext.loc() - 1) // advance but do not consume the closing parenthesis
 	}
+
+	return nil
 }
 
 func parseQuantifier(ch uint8, memory *parsingContext) {
@@ -305,19 +334,27 @@ func parseLiteral(ch uint8, memory *parsingContext) {
 	memory.push(token)
 }
 
-func processChar(regexString string, memory *parsingContext, ch uint8) {
+func processChar(regexString string, memory *parsingContext, ch uint8) *RegexError {
 	if ch == '(' {
 		memory.adv()
-		parseGroup(regexString, memory)
+		if err := parseGroup(regexString, memory); err != nil {
+			return err
+		}
 	} else if ch == '[' {
 		memory.adv()
-		parseBracket(regexString, memory)
+		if err := parseBracket(regexString, memory); err != nil {
+			return err
+		}
 	} else if isQuantifier(ch) {
 		parseQuantifier(ch, memory)
 	} else if ch == '{' {
-		parseBoundedQuantifier(regexString, memory)
+		if err := parseBoundedQuantifier(regexString, memory); err != nil {
+			return err
+		}
 	} else if ch == '\\' { // escaped backslash
-		parseBackslash(regexString, memory)
+		if err := parseBackslash(regexString, memory); err != nil {
+			return err
+		}
 	} else if isWildcard(ch) {
 		token := regexToken{
 			tokenType: Wildcard,
@@ -335,12 +372,10 @@ func processChar(regexString string, memory *parsingContext, ch uint8) {
 		}
 
 		memory.adv() // to not get stuck in the pipe char
-		parseGroupUncaptured(regexString, memory)
+		if err := parseGroupUncaptured(regexString, memory); err != nil {
+			return err
+		}
 		right := memory.removeLast(1)[0] // TODO: better error handling?
-
-		// clear the memory as we do not need
-		// any of these tokens anymore
-		//memory.removeLast(len(memory.tokens))
 
 		token := regexToken{
 			tokenType: Or,
@@ -360,9 +395,10 @@ func processChar(regexString string, memory *parsingContext, ch uint8) {
 		}
 		memory.push(token)
 	}
+	return nil
 }
 
-func parseBoundedQuantifier(regexString string, memory *parsingContext) {
+func parseBoundedQuantifier(regexString string, memory *parsingContext) *RegexError {
 	startPos := memory.adv()
 	var endPos = memory.loc()
 	for regexString[endPos] != '}' {
@@ -372,18 +408,47 @@ func parseBoundedQuantifier(regexString string, memory *parsingContext) {
 	expr := regexString[startPos:endPos]
 	pieces := strings.Split(expr, ",")
 
+	if len(pieces) == 0 {
+		return &RegexError{
+			Code:    SyntaxError,
+			Message: "Quantifier must have at least one bound",
+			Pos:     startPos,
+		}
+	}
+
 	var start int
 	var end int
-
+	var err error
 	if len(pieces) == 1 {
-		start, _ = strconv.Atoi(pieces[0])
+		start, err = strconv.Atoi(pieces[0])
+		if err != nil {
+			return &RegexError{
+				Code:    SyntaxError,
+				Message: err.Error(),
+				Pos:     startPos,
+			}
+		}
 		end = start
 	} else if len(pieces) == 2 {
-		start, _ = strconv.Atoi(pieces[0])
+		start, err = strconv.Atoi(pieces[0])
+		if err != nil {
+			return &RegexError{
+				Code:    SyntaxError,
+				Message: err.Error(),
+				Pos:     startPos,
+			}
+		}
 		if pieces[1] == "" {
 			end = QuantifierInfinity
 		} else {
-			end, _ = strconv.Atoi(pieces[1])
+			end, err = strconv.Atoi(pieces[1])
+			if err != nil {
+				return &RegexError{
+					Code:    SyntaxError,
+					Message: err.Error(),
+					Pos:     startPos,
+				}
+			}
 		}
 	}
 
@@ -396,9 +461,11 @@ func parseBoundedQuantifier(regexString string, memory *parsingContext) {
 		},
 	}
 	memory.push(token)
+
+	return nil
 }
 
-func parseBackslash(regexString string, memory *parsingContext) {
+func parseBackslash(regexString string, memory *parsingContext) *RegexError {
 	nextChar := regexString[memory.loc()+1]
 	if isNumeric(nextChar) { // cares about the next single digit
 		token := regexToken{
@@ -422,7 +489,11 @@ func parseBackslash(regexString string, memory *parsingContext) {
 			memory.push(token)
 			memory.adv()
 		} else {
-			panic("invalid backreference syntax")
+			return &RegexError{
+				Code:    SyntaxError,
+				Message: "Invalid backreference syntax",
+				Pos:     memory.loc(),
+			}
 		}
 	} else if _, canBeEscaped := mustBeEscapedCharacters[nextChar]; canBeEscaped {
 		token := regexToken{
@@ -432,14 +503,23 @@ func parseBackslash(regexString string, memory *parsingContext) {
 		memory.push(token)
 		memory.adv()
 	} else {
-		panic("unimplemented")
+		return &RegexError{
+			Code:    Unimplemented,
+			Message: "Unimplemented",
+			Pos:     memory.loc(),
+		}
 	}
+
+	return nil
 }
 
-func regex(regexString string, memory *parsingContext) {
+func parse(regexString string, memory *parsingContext) *RegexError {
 	for memory.loc() < len(regexString) {
 		ch := regexString[memory.loc()]
-		processChar(regexString, memory, ch)
+		if err := processChar(regexString, memory, ch); err != nil {
+			return err
+		}
 		memory.adv()
 	}
+	return nil
 }

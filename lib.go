@@ -1,13 +1,15 @@
 package rgx
 
 // Compile compiles the given regex string
-func Compile(regexString string) *State {
+func Compile(regexString string) (*State, *RegexError) {
 	parseContext := parsingContext{
 		pos:            0,
 		tokens:         []regexToken{},
 		capturedGroups: map[string]bool{},
 	}
-	regex(regexString, &parseContext)
+	if err := parse(regexString, &parseContext); err != nil {
+		return nil, err
+	}
 	return toNfa(&parseContext)
 }
 
@@ -70,6 +72,10 @@ func (s *State) FindMatches(inputString string) []Result {
 }
 
 // Check compiles the regexString and tests the inputString against it
-func Check(regexString string, inputString string) Result {
-	return Compile(regexString).Test(inputString)
+func Check(regexString string, inputString string) (Result, *RegexError) {
+	compiledNfa, err := Compile(regexString)
+	if err != nil {
+		return Result{}, err
+	}
+	return compiledNfa.Test(inputString), nil
 }

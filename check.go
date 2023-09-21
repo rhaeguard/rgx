@@ -1,7 +1,5 @@
 package rgx
 
-import "fmt"
-
 func getChar(input string, pos int) uint8 {
 	if pos >= 0 && pos < len(input) {
 		return input[pos]
@@ -17,15 +15,10 @@ func getChar(input string, pos int) uint8 {
 // get the next state given the 'ch' as an input
 func (s *State) nextStateWith(ch uint8) *State {
 	states := s.transitions[ch]
-
-	size := len(states)
-
-	if size == 0 {
+	if len(states) == 0 {
 		return nil
-	} else if size == 1 {
-		return states[0]
 	}
-	panic(fmt.Sprintf("There must be at most 1 transition, found %d", size))
+	return states[0]
 }
 
 // checks if the inputString is accepted by this NFA
