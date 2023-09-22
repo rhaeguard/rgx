@@ -50,7 +50,10 @@ func (s *State) check(inputString string, pos int, started bool, ctx *regexCheck
 				// set the end to the current position
 				// a group can have 2 different names: numeric (\1) and user-set (\k<animal>)
 				for _, groupName := range capturedGroup.names {
-					ctx.groups[groupName].end = pos
+					if ctx.groups[groupName].end < pos {
+						// only update if the new position is greater
+						ctx.groups[groupName].end = pos
+					}
 				}
 			}
 		}
@@ -58,9 +61,16 @@ func (s *State) check(inputString string, pos int, started bool, ctx *regexCheck
 
 	currentChar := getChar(inputString, pos)
 
-	// if it needs to be the end of the text, and it isn't
-	// or if it needs to be the start of the text and it isn't
-	if (s.endOfText && currentChar != endOfText) || (s.startOfText && currentChar != startOfText) {
+	// the current character should be either EOF or
+	// the next one after that a newline to be valid, otherwise check fails
+	if s.endOfText && (currentChar != endOfText && currentChar != newline) {
+		return false
+	}
+
+	previousChar := getChar(inputString, pos-1)
+	// the current character should be either Start of File or
+	// the previous one before that a newline to be valid, otherwise check fails
+	if s.startOfText && (currentChar != startOfText && previousChar != newline) {
 		return false
 	}
 
@@ -96,7 +106,7 @@ func (s *State) check(inputString string, pos int, started bool, ctx *regexCheck
 	nextState := s.nextStateWith(currentChar)
 	// if there are no transitions for the current char as is
 	// then see if there's a transition for any char, i.e. dot (.) sign
-	if nextState == nil && currentChar != endOfText {
+	if nextState == nil && (currentChar != endOfText && currentChar != newline) {
 		nextState = s.nextStateWith(anyChar)
 	}
 

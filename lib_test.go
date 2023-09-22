@@ -2,6 +2,7 @@ package rgx
 
 import (
 	"fmt"
+	"os"
 	"testing"
 )
 
@@ -150,6 +151,11 @@ func TestFindMatches(t *testing.T) {
 			{"0": "123-678-99-32"},
 			{"0": "239-987-63-21"},
 		}},
+		// multiline extracts
+		{`[0-9]{3}-[0-9]{3}-[0-9]{2}-[0-9]{2}$`, "hi 123-678-99-32\n is my number, so is 239-987-63-21", []map[string]string{
+			{"0": "123-678-99-32"},
+			{"0": "239-987-63-21"},
+		}},
 	}
 
 	for _, test := range data {
@@ -157,16 +163,16 @@ func TestFindMatches(t *testing.T) {
 		t.Run(testName, func(t *testing.T) {
 			pattern, err := Compile(test.regexString)
 			if err != nil {
-				t.Errorf(err.Error())
+				t.Fatalf(err.Error())
 			}
 			results := pattern.FindMatches(test.input)
 			if len(results) != len(test.expected) {
-				t.Fail()
+				t.Fatalf("must have expected number of results: expected %d got %d", len(test.expected), len(results))
 			}
 			for i, expected := range test.expected {
 				for k, v := range expected {
 					if results[i].groups[k] != v {
-						t.Fail()
+						t.Fatalf("expected '%s' got: '%s'", v, results[i].groups[k])
 					}
 				}
 			}
@@ -174,12 +180,44 @@ func TestFindMatches(t *testing.T) {
 	}
 }
 
+func TestFindMatchesInTextFile(t *testing.T) {
+	bytes, err := os.ReadFile("lib_testdata")
+	if err != nil {
+		t.Fatalf("could not open the file: %s", err.Error())
+	}
+	content := string(bytes)
+
+	var data = []struct {
+		regexString             string
+		expectedOccurrenceCount int
+	}{
+		{`door`, 33},
+		{`door `, 14},
+		{`[a-z]+-[a-z]+`, 121},
+	}
+
+	for _, test := range data {
+		pattern, err := Compile(test.regexString)
+		if err != nil {
+			t.Fatalf(err.Error())
+		}
+		testName := fmt.Sprintf("alice in wonderland: regex='%s'", test.regexString)
+		t.Run(testName, func(t *testing.T) {
+			results := pattern.FindMatches(content)
+			if len(results) != test.expectedOccurrenceCount {
+				t.Fatalf("expected %d, got: %d", test.expectedOccurrenceCount, len(results))
+			}
+		})
+	}
+
+}
+
 func TestCheckForDev(t *testing.T) {
 	var data = []struct {
 		regexString, input string
 		expected           bool
 	}{
-		{`[[\]-]+$`, `]-[]-[]-[[]]--[]`, true},
+		{`\h+`, ``, false},
 	}
 
 	for _, test := range data {

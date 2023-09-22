@@ -503,11 +503,17 @@ func parseBackslash(regexString string, memory *parsingContext) *RegexError {
 		memory.push(token)
 		memory.adv()
 	} else {
-		return &RegexError{
-			Code:    Unimplemented,
-			Message: "Unimplemented",
-			Pos:     memory.loc(),
+		if nextChar == 'n' {
+			nextChar = '\n'
+		} else if nextChar == 't' {
+			nextChar = '\t'
 		}
+		token := regexToken{
+			tokenType: literal,
+			value:     nextChar,
+		}
+		memory.push(token)
+		memory.adv()
 	}
 
 	return nil

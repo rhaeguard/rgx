@@ -30,6 +30,7 @@ const (
 	startOfText = 1
 	endOfText   = 2
 	anyChar     = 3
+	newline     = 10
 )
 
 func toNfa(memory *parsingContext) (*State, *RegexError) {

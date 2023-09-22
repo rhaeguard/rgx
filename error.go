@@ -6,7 +6,6 @@ type ParseErrorCode string
 
 const (
 	SyntaxError      ParseErrorCode = "SyntaxError"
-	Unimplemented                   = "Unimplemented"
 	CompilationError                = "CompilationError"
 )
 

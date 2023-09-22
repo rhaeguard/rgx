@@ -28,12 +28,15 @@ a very simple regex engine written in go.
 - [x] `\` escape character
   - [x] support special characters - context dependant
 - [x] better error handling in the API
-- [ ] ability to work on multi-line strings
-  - [ ] `.` should not match the newline - `\n`
-  - [ ] `$` should match the newline - `\n`
-  - [ ] multiple full matches
+- [x] ability to work on multi-line strings (tested on [Alice in Wonderland](./lib_testdata) text corpus)
+  - [x] `.` should not match the newline - `\n`
+  - [x] `$` should match the newline - `\n`
+  - [x] multiple full matches
 
 ## notes
 
 - `\` escape turns any next character into a literal, no special combinations such as `\d` for digits, `\b` for backspace, etc. are allowed
 - numeric groups `\n` only support single digit references, so `\10` will be interpreted as the first capture group followed by a literal `0`
+
+## credits
+- [Alice in Wonderland, Lewis Carroll, Project Guttenberg](https://www.gutenberg.org/ebooks/11)
