@@ -181,6 +181,15 @@ func tokenToNfa(token regexToken, memory *parsingContext, startFrom *State) (*St
 	case groupUncaptured:
 		values := token.value.([]regexToken)
 
+		if len(values) == 0 {
+			end := &State{
+				transitions: map[uint8][]*State{},
+			}
+
+			startFrom.transitions[epsilonChar] = append(startFrom.transitions[epsilonChar], end)
+			return startFrom, end, nil
+		}
+
 		start, end, err := tokenToNfa(values[0], memory, &State{
 			transitions: map[uint8][]*State{},
 		})

@@ -108,6 +108,12 @@ func TestCheck(t *testing.T) {
 		{`(?<anim>cat)-\k<anim>`, "nonsensedog-cat-cat-dognonsense", true},
 		{`(?<letter>[cxv])-[a-z]+-\k<letter>`, "c-abcd-c", true},
 		{`(?<letter>[cxv])-[a-z]+-\k<letter>`, "c-abcd-d", false},
+		// capturing groups, numeric groups and named groups: example with a phone number format
+		{`[0-9]{3}(-| )?[0-9]{3}\1[0-9]{2}\1[0-9]{2}`, `123-678-99-32`, true},
+		{`[0-9]{3}(-| )?[0-9]{3}\1[0-9]{2}\1?[0-9]{2}`, `123 678 99 32`, true},
+		{`[0-9]{3}(-| )?[0-9]{3}\1[0-9]{2}\1?[0-9]{2}`, `123 678 9932`, true},
+		{`[0-9]{3}(-| |)?[0-9]{3}\1[0-9]{2}\1?[0-9]{2}`, `1236789932`, true},
+		{`[0-9]{3}(|-| )?[0-9]{3}\1[0-9]{2}\1?[0-9]{2}`, `1236789932`, true},
 		// quantifiers
 		{"(hi){2,3}", "hi hihi hihi", true},
 		{`ab{0,}bc`, `abbbbc`, true},
@@ -217,7 +223,11 @@ func TestCheckForDev(t *testing.T) {
 		regexString, input string
 		expected           bool
 	}{
-		{`\h+`, ``, false},
+		{`[0-9]{3}(-| )?[0-9]{3}\1[0-9]{2}\1[0-9]{2}`, `123-678-99-32`, true},
+		{`[0-9]{3}(-| )?[0-9]{3}\1[0-9]{2}\1?[0-9]{2}`, `123 678 99 32`, true},
+		{`[0-9]{3}(-| )?[0-9]{3}\1[0-9]{2}\1?[0-9]{2}`, `123 678 9932`, true},
+		{`[0-9]{3}(-| |)?[0-9]{3}\1[0-9]{2}\1?[0-9]{2}`, `1236789932`, true},
+		{`[0-9]{3}(|-| )?[0-9]{3}\1[0-9]{2}\1?[0-9]{2}`, `1236789932`, true},
 	}
 
 	for _, test := range data {
