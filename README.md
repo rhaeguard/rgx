@@ -2,9 +2,30 @@
 
 ![](https://github.com/rhaeguard/rgx/actions/workflows/go.yml/badge.svg)
 
-a very simple regex engine written in go.
+A very simple regex engine written in go. This library is experimental, use it at your own risk!
 
-## todo
+### to add the dependency:
+
+```shell
+go get github.com/rhaeguard/rgx
+```
+
+### how to use: 
+```go
+import "github.com/rhaeguard/rgx"
+
+pattern, err := rgx.Compile(regexString)
+if err != nil {
+	// error handling
+}
+results := pattern.FindMatches(content)
+
+if results.Matches {
+	groupMatchString := results.Groups["group-name"]
+}
+```
+
+### todo
 
 - [x] `^` beginning of the string
 - [x] `$` end of the string
