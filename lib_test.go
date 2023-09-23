@@ -141,7 +141,7 @@ func TestCheck(t *testing.T) {
 			if err != nil {
 				t.Errorf(err.Error())
 			}
-			if test.expected != result.matches {
+			if test.expected != result.Matches {
 				t.Errorf("test %s failed", testName)
 			}
 		})
@@ -177,8 +177,8 @@ func TestFindMatches(t *testing.T) {
 			}
 			for i, expected := range test.expected {
 				for k, v := range expected {
-					if results[i].groups[k] != v {
-						t.Fatalf("expected '%s' got: '%s'", v, results[i].groups[k])
+					if results[i].Groups[k] != v {
+						t.Fatalf("expected '%s' got: '%s'", v, results[i].Groups[k])
 					}
 				}
 			}
@@ -238,7 +238,7 @@ func TestCheckForDev(t *testing.T) {
 			if err != nil {
 				t.Errorf(err.Error())
 			}
-			if test.expected != result.matches {
+			if test.expected != result.Matches {
 				_ = fmt.Errorf("test %s failed", testName)
 				t.Fail()
 			}
