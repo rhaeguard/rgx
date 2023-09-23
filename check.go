@@ -134,8 +134,8 @@ func (s *State) check(inputString string, pos int, started bool, ctx *regexCheck
 }
 
 type Result struct {
-	matches bool
-	groups  map[string]string
+	Matches bool
+	Groups  map[string]string
 }
 
 type capture struct {

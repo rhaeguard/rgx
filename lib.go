@@ -32,8 +32,8 @@ func (s *State) Test(inputString string) Result {
 	}
 
 	return Result{
-		matches: result,
-		groups:  groups,
+		Matches: result,
+		Groups:  groups,
 	}
 }
 
@@ -62,8 +62,8 @@ func (s *State) FindMatches(inputString string) []Result {
 		}
 
 		r := Result{
-			matches: result,
-			groups:  groups,
+			Matches: result,
+			Groups:  groups,
 		}
 
 		results = append(results, r)
