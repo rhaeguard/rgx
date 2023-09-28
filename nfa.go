@@ -33,12 +33,12 @@ const (
 	newline     = 10
 )
 
-func toNfa(memory *parsingContext) (*State, *RegexError) {
+func toNfa(parseCtx *parsingContext) (*State, *RegexError) {
 	startFrom := 0
-	endAt := len(memory.tokens) - 1
+	endAt := len(parseCtx.tokens) - 1
 
-	token := memory.tokens[startFrom]
-	startState, endState, err := tokenToNfa(token, memory, &State{
+	token := parseCtx.tokens[startFrom]
+	startState, endState, err := tokenToNfa(token, parseCtx, &State{
 		transitions: map[uint8][]*State{},
 	})
 
@@ -47,7 +47,7 @@ func toNfa(memory *parsingContext) (*State, *RegexError) {
 	}
 
 	for i := startFrom + 1; i <= endAt; i++ {
-		_, endNext, err := tokenToNfa(memory.tokens[i], memory, endState)
+		_, endNext, err := tokenToNfa(parseCtx.tokens[i], parseCtx, endState)
 		if err != nil {
 			return nil, err
 		}
@@ -83,7 +83,7 @@ func toNfa(memory *parsingContext) (*State, *RegexError) {
 	return start, nil
 }
 
-func tokenToNfa(token regexToken, memory *parsingContext, startFrom *State) (*State, *State, *RegexError) {
+func tokenToNfa(token regexToken, parseCtx *parsingContext, startFrom *State) (*State, *State, *RegexError) {
 	switch token.tokenType {
 	case literal:
 		value := token.value.(uint8)
@@ -93,22 +93,20 @@ func tokenToNfa(token regexToken, memory *parsingContext, startFrom *State) (*St
 		startFrom.transitions[value] = []*State{to}
 		return startFrom, to, nil
 	case quantifier:
-		return handleQuantifierToToken(token, memory, startFrom)
+		return handleQuantifierToToken(token, parseCtx, startFrom)
 	case wildcard:
 		to := &State{
 			transitions: map[uint8][]*State{},
 		}
-
 		startFrom.transitions[anyChar] = []*State{to}
-
 		return startFrom, to, nil
 	case or:
 		values := token.value.([]regexToken)
-		_, end1, err := tokenToNfa(values[0], memory, startFrom)
+		_, end1, err := tokenToNfa(values[0], parseCtx, startFrom)
 		if err != nil {
 			return nil, nil, err
 		}
-		_, end2, err := tokenToNfa(values[1], memory, startFrom)
+		_, end2, err := tokenToNfa(values[1], parseCtx, startFrom)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -125,7 +123,7 @@ func tokenToNfa(token regexToken, memory *parsingContext, startFrom *State) (*St
 		v := token.value.(groupTokenPayload)
 
 		// concatenate all the elements in the group
-		start, end, err := tokenToNfa(v.tokens[0], memory, &State{
+		start, end, err := tokenToNfa(v.tokens[0], parseCtx, &State{
 			transitions: map[uint8][]*State{},
 		})
 
@@ -134,7 +132,7 @@ func tokenToNfa(token regexToken, memory *parsingContext, startFrom *State) (*St
 		}
 
 		for i := 1; i < len(v.tokens); i++ {
-			_, endNext, err := tokenToNfa(v.tokens[i], memory, end)
+			_, endNext, err := tokenToNfa(v.tokens[i], parseCtx, end)
 			if err != nil {
 				return nil, nil, err
 			}
@@ -142,14 +140,14 @@ func tokenToNfa(token regexToken, memory *parsingContext, startFrom *State) (*St
 		}
 		// concatenation ends
 
-		groupNameNumeric := fmt.Sprintf("%d", memory.nextGroup())
+		groupNameNumeric := fmt.Sprintf("%d", parseCtx.nextGroup())
 		groupNameUserSet := v.name
 
 		groupNames := []string{groupNameNumeric}
-		memory.capturedGroups[groupNameNumeric] = true
+		parseCtx.capturedGroups[groupNameNumeric] = true
 		if groupNameUserSet != "" {
 			groupNames = append(groupNames, groupNameUserSet)
-			memory.capturedGroups[groupNameUserSet] = true
+			parseCtx.capturedGroups[groupNameUserSet] = true
 		}
 
 		if startFrom.groups != nil {
@@ -186,11 +184,11 @@ func tokenToNfa(token regexToken, memory *parsingContext, startFrom *State) (*St
 				transitions: map[uint8][]*State{},
 			}
 
-			startFrom.transitions[epsilonChar] = append(startFrom.transitions[epsilonChar], end)
+			startFrom.transitions[epsilonChar] = append(startFrom.transitions[epsilonChar], startFrom)
 			return startFrom, end, nil
 		}
 
-		start, end, err := tokenToNfa(values[0], memory, &State{
+		start, end, err := tokenToNfa(values[0], parseCtx, &State{
 			transitions: map[uint8][]*State{},
 		})
 
@@ -199,7 +197,7 @@ func tokenToNfa(token regexToken, memory *parsingContext, startFrom *State) (*St
 		}
 
 		for i := 1; i < len(values); i++ {
-			_, endNext, err := tokenToNfa(values[i], memory, end)
+			_, endNext, err := tokenToNfa(values[i], parseCtx, end)
 
 			if err != nil {
 				return nil, nil, err
@@ -211,21 +209,17 @@ func tokenToNfa(token regexToken, memory *parsingContext, startFrom *State) (*St
 		startFrom.transitions[epsilonChar] = append(startFrom.transitions[epsilonChar], start)
 		return startFrom, end, nil
 	case bracket:
-		constructTokens := token.value.([]regexToken)
-
 		to := &State{
 			transitions: map[uint8][]*State{},
 		}
 
-		for _, construct := range constructTokens {
-			ch := construct.value.(uint8)
+		constructTokens := token.value.(map[uint8]bool)
+		for ch := range constructTokens {
 			startFrom.transitions[ch] = []*State{to}
 		}
 
 		return startFrom, to, nil
 	case bracketNot:
-		constructTokens := token.value.([]regexToken)
-
 		to := &State{
 			transitions: map[uint8][]*State{},
 		}
@@ -234,8 +228,8 @@ func tokenToNfa(token regexToken, memory *parsingContext, startFrom *State) (*St
 			transitions: map[uint8][]*State{},
 		}
 
-		for _, construct := range constructTokens {
-			ch := construct.value.(uint8)
+		constructTokens := token.value.(map[uint8]bool)
+		for ch := range constructTokens {
 			startFrom.transitions[ch] = []*State{deadEnd}
 		}
 		startFrom.transitions[anyChar] = []*State{to}
@@ -253,7 +247,7 @@ func tokenToNfa(token regexToken, memory *parsingContext, startFrom *State) (*St
 		return startFrom, startFrom, nil
 	case backReference:
 		groupName := token.value.(string)
-		if _, ok := memory.capturedGroups[groupName]; !ok {
+		if _, ok := parseCtx.capturedGroups[groupName]; !ok {
 			return nil, nil, &RegexError{
 				Code:    CompilationError,
 				Message: fmt.Sprintf("Group (%s) does not exist", groupName),
@@ -277,7 +271,7 @@ func tokenToNfa(token regexToken, memory *parsingContext, startFrom *State) (*St
 	}
 }
 
-func handleQuantifierToToken(token regexToken, memory *parsingContext, startFrom *State) (*State, *State, *RegexError) {
+func handleQuantifierToToken(token regexToken, parseCtx *parsingContext, startFrom *State) (*State, *State, *RegexError) {
 	payload := token.value.(quantifierPayload)
 	// the minimum amount of time the NFA needs to repeat
 	min := payload.min
@@ -310,7 +304,7 @@ func handleQuantifierToToken(token regexToken, memory *parsingContext, startFrom
 	} else {
 		value = token.value.([]regexToken)[0]
 	}
-	previousStart, previousEnd, err := tokenToNfa(value, memory, &State{
+	previousStart, previousEnd, err := tokenToNfa(value, parseCtx, &State{
 		transitions: map[uint8][]*State{},
 	})
 
@@ -323,7 +317,7 @@ func handleQuantifierToToken(token regexToken, memory *parsingContext, startFrom
 	// starting from 2, because the one above is the first one
 	for i := 2; i <= total; i++ {
 		// the same NFA needs to be generated 'total' times
-		start, end, err := tokenToNfa(value, memory, &State{
+		start, end, err := tokenToNfa(value, parseCtx, &State{
 			transitions: map[uint8][]*State{},
 		})
 
