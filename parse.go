@@ -151,27 +151,27 @@ func isQuantifier(ch uint8) bool {
 	return ok
 }
 
-func parseBracket(regexString string, memory *parsingContext) *RegexError {
-	var pieces []string
+func parseBracket(regexString string, parseContext *parsingContext) *RegexError {
 	var tokenType regexTokenType
 
-	if regexString[memory.loc()] == '^' {
+	if regexString[parseContext.loc()] == '^' {
 		tokenType = bracketNot
-		memory.adv()
+		parseContext.adv()
 	} else {
 		tokenType = bracket
 	}
 
-	for memory.loc() < len(regexString) && regexString[memory.loc()] != ']' {
-		ch := regexString[memory.loc()]
+	var pieces []string
+	for parseContext.loc() < len(regexString) && regexString[parseContext.loc()] != ']' {
+		ch := regexString[parseContext.loc()]
 
-		if ch == '-' {
-			nextChar := regexString[memory.loc()+1] // TODO: this might fail if we are at the end of the string
+		if ch == '-' && parseContext.loc()+1 < len(regexString) {
+			nextChar := regexString[parseContext.loc()+1]
 			// if - is the first character OR is the last character, it's a literal
 			if len(pieces) == 0 || nextChar == ']' {
 				pieces = append(pieces, fmt.Sprintf("%c", ch))
 			} else {
-				memory.adv() // to process the nextChar's position
+				parseContext.adv() // to process the nextChar's position
 				piece := pieces[len(pieces)-1]
 				if len(piece) == 1 {
 					prevChar := piece[0]
@@ -181,15 +181,15 @@ func parseBracket(regexString string, memory *parsingContext) *RegexError {
 						return &RegexError{
 							Code:    SyntaxError,
 							Message: fmt.Sprintf("'%c-%c' range is invalid", prevChar, nextChar),
-							Pos:     memory.loc(),
+							Pos:     parseContext.loc(),
 						}
 					}
 				} else {
 					pieces = append(pieces, fmt.Sprintf("%c", ch))
 				}
 			}
-		} else if ch == '\\' {
-			nextChar := regexString[memory.adv()] // TODO: this might fail if we are at the end of the string
+		} else if ch == '\\' && parseContext.loc()+1 < len(regexString) {
+			nextChar := regexString[parseContext.adv()]
 			// TODO: some characters are special: \a does not just mean a, it means alarm ascii char etc.
 			// TODO: maybe in future, I'll implement that as well
 			// TODO: for now, all the escaped characters will be treated as literals
@@ -197,14 +197,14 @@ func parseBracket(regexString string, memory *parsingContext) *RegexError {
 		} else {
 			pieces = append(pieces, fmt.Sprintf("%c", ch))
 		}
-		memory.adv()
+		parseContext.adv()
 	}
 
 	if len(pieces) == 0 {
 		return &RegexError{
 			Code:    SyntaxError,
 			Message: "Bracket should not be empty",
-			Pos:     memory.loc(),
+			Pos:     parseContext.loc(),
 		}
 	}
 
@@ -215,26 +215,18 @@ func parseBracket(regexString string, memory *parsingContext) *RegexError {
 		}
 	}
 
-	var finalTokens []regexToken
-	for ch := range uniqueCharacterPieces {
-		finalTokens = append(finalTokens, regexToken{
-			tokenType: literal,
-			value:     ch,
-		})
-	}
-
 	token := regexToken{
 		tokenType: tokenType,
-		value:     finalTokens,
+		value:     uniqueCharacterPieces,
 	}
-	memory.tokens = append(memory.tokens, token)
+	parseContext.tokens = append(parseContext.tokens, token)
 
 	return nil
 }
 
-func parseGroup(regexString string, memory *parsingContext) *RegexError {
+func parseGroup(regexString string, parseContext *parsingContext) *RegexError {
 	groupContext := parsingContext{
-		pos:    memory.loc(),
+		pos:    parseContext.loc(),
 		tokens: []regexToken{},
 	}
 
@@ -279,14 +271,14 @@ func parseGroup(regexString string, memory *parsingContext) *RegexError {
 			name:   groupName,
 		},
 	}
-	memory.push(token)
-	memory.advTo(groupContext.loc())
+	parseContext.push(token)
+	parseContext.advTo(groupContext.loc())
 	return nil
 }
 
-func parseGroupUncaptured(regexString string, memory *parsingContext) *RegexError {
+func parseGroupUncaptured(regexString string, parseContext *parsingContext) *RegexError {
 	groupContext := parsingContext{
-		pos:    memory.loc(),
+		pos:    parseContext.loc(),
 		tokens: []regexToken{},
 	}
 
@@ -302,57 +294,57 @@ func parseGroupUncaptured(regexString string, memory *parsingContext) *RegexErro
 		tokenType: groupUncaptured,
 		value:     groupContext.tokens,
 	}
-	memory.push(token)
+	parseContext.push(token)
 
 	if groupContext.loc() >= len(regexString) {
-		memory.advTo(groupContext.loc())
+		parseContext.advTo(groupContext.loc())
 	} else if regexString[groupContext.loc()] == ')' {
-		memory.advTo(groupContext.loc() - 1) // advance but do not consume the closing parenthesis
+		parseContext.advTo(groupContext.loc() - 1) // advance but do not consume the closing parenthesis
 	}
 
 	return nil
 }
 
-func parseQuantifier(ch uint8, memory *parsingContext) {
+func parseQuantifier(ch uint8, parseContext *parsingContext) {
 	bounds := quantifiersWithBounds[ch]
 	token := regexToken{
 		tokenType: quantifier,
 		value: quantifierPayload{
 			min:   bounds[0],
 			max:   bounds[1],
-			value: memory.removeLast(1),
+			value: parseContext.removeLast(1),
 		},
 	}
-	memory.push(token)
+	parseContext.push(token)
 }
 
-func parseLiteral(ch uint8, memory *parsingContext) {
+func parseLiteral(ch uint8, parseContext *parsingContext) {
 	token := regexToken{
 		tokenType: literal,
 		value:     ch,
 	}
-	memory.push(token)
+	parseContext.push(token)
 }
 
-func processChar(regexString string, memory *parsingContext, ch uint8) *RegexError {
+func processChar(regexString string, parseContext *parsingContext, ch uint8) *RegexError {
 	if ch == '(' {
-		memory.adv()
-		if err := parseGroup(regexString, memory); err != nil {
+		parseContext.adv()
+		if err := parseGroup(regexString, parseContext); err != nil {
 			return err
 		}
 	} else if ch == '[' {
-		memory.adv()
-		if err := parseBracket(regexString, memory); err != nil {
+		parseContext.adv()
+		if err := parseBracket(regexString, parseContext); err != nil {
 			return err
 		}
 	} else if isQuantifier(ch) {
-		parseQuantifier(ch, memory)
+		parseQuantifier(ch, parseContext)
 	} else if ch == '{' {
-		if err := parseBoundedQuantifier(regexString, memory); err != nil {
+		if err := parseBoundedQuantifier(regexString, parseContext); err != nil {
 			return err
 		}
 	} else if ch == '\\' { // escaped backslash
-		if err := parseBackslash(regexString, memory); err != nil {
+		if err := parseBackslash(regexString, parseContext); err != nil {
 			return err
 		}
 	} else if isWildcard(ch) {
@@ -360,28 +352,28 @@ func processChar(regexString string, memory *parsingContext, ch uint8) *RegexErr
 			tokenType: wildcard,
 			value:     ch,
 		}
-		memory.push(token)
+		parseContext.push(token)
 	} else if isLiteral(ch) {
-		parseLiteral(ch, memory)
+		parseLiteral(ch, parseContext)
 	} else if ch == '|' {
 		// everything to the left of the pipe in this specific "parsingContext"
 		// is considered as the left side of the OR
 		left := regexToken{
 			tokenType: groupUncaptured,
-			value:     memory.removeLast(len(memory.tokens)),
+			value:     parseContext.removeLast(len(parseContext.tokens)),
 		}
 
-		memory.adv() // to not get stuck in the pipe char
-		if err := parseGroupUncaptured(regexString, memory); err != nil {
+		parseContext.adv() // to not get stuck in the pipe char
+		if err := parseGroupUncaptured(regexString, parseContext); err != nil {
 			return err
 		}
-		right := memory.removeLast(1)[0] // TODO: better error handling?
+		right := parseContext.removeLast(1)[0] // TODO: better error handling?
 
 		token := regexToken{
 			tokenType: or,
 			value:     []regexToken{left, right},
 		}
-		memory.push(token)
+		parseContext.push(token)
 	} else if ch == '^' || ch == '$' { // anchors
 		var tokenType = regexTokenType(textBeginning)
 
@@ -393,18 +385,18 @@ func processChar(regexString string, memory *parsingContext, ch uint8) *RegexErr
 			tokenType: tokenType,
 			value:     ch,
 		}
-		memory.push(token)
+		parseContext.push(token)
 	}
 	return nil
 }
 
-func parseBoundedQuantifier(regexString string, memory *parsingContext) *RegexError {
-	startPos := memory.adv()
-	var endPos = memory.loc()
+func parseBoundedQuantifier(regexString string, parseContext *parsingContext) *RegexError {
+	startPos := parseContext.adv()
+	var endPos = parseContext.loc()
 	for regexString[endPos] != '}' {
 		endPos++
 	}
-	memory.advTo(endPos)
+	parseContext.advTo(endPos)
 	expr := regexString[startPos:endPos]
 	pieces := strings.Split(expr, ",")
 
@@ -457,42 +449,42 @@ func parseBoundedQuantifier(regexString string, memory *parsingContext) *RegexEr
 		value: quantifierPayload{
 			min:   start,
 			max:   end,
-			value: memory.removeLast(1),
+			value: parseContext.removeLast(1),
 		},
 	}
-	memory.push(token)
+	parseContext.push(token)
 
 	return nil
 }
 
-func parseBackslash(regexString string, memory *parsingContext) *RegexError {
-	nextChar := regexString[memory.loc()+1]
+func parseBackslash(regexString string, parseContext *parsingContext) *RegexError {
+	nextChar := regexString[parseContext.loc()+1]
 	if isNumeric(nextChar) { // cares about the next single digit
 		token := regexToken{
 			tokenType: backReference,
 			value:     fmt.Sprintf("%c", nextChar),
 		}
-		memory.push(token)
-		memory.adv()
+		parseContext.push(token)
+		parseContext.adv()
 	} else if nextChar == 'k' { // \k<name> reference
-		memory.adv()
-		if regexString[memory.adv()] == '<' {
+		parseContext.adv()
+		if regexString[parseContext.adv()] == '<' {
 			groupName := ""
-			for regexString[memory.adv()] != '>' {
-				nextChar = regexString[memory.loc()]
+			for regexString[parseContext.adv()] != '>' {
+				nextChar = regexString[parseContext.loc()]
 				groupName += fmt.Sprintf("%c", nextChar)
 			}
 			token := regexToken{
 				tokenType: backReference,
 				value:     groupName,
 			}
-			memory.push(token)
-			memory.adv()
+			parseContext.push(token)
+			parseContext.adv()
 		} else {
 			return &RegexError{
 				Code:    SyntaxError,
 				Message: "Invalid backreference syntax",
-				Pos:     memory.loc(),
+				Pos:     parseContext.loc(),
 			}
 		}
 	} else if _, canBeEscaped := mustBeEscapedCharacters[nextChar]; canBeEscaped {
@@ -500,8 +492,8 @@ func parseBackslash(regexString string, memory *parsingContext) *RegexError {
 			tokenType: literal,
 			value:     nextChar,
 		}
-		memory.push(token)
-		memory.adv()
+		parseContext.push(token)
+		parseContext.adv()
 	} else {
 		if nextChar == 'n' {
 			nextChar = '\n'
@@ -512,20 +504,20 @@ func parseBackslash(regexString string, memory *parsingContext) *RegexError {
 			tokenType: literal,
 			value:     nextChar,
 		}
-		memory.push(token)
-		memory.adv()
+		parseContext.push(token)
+		parseContext.adv()
 	}
 
 	return nil
 }
 
-func parse(regexString string, memory *parsingContext) *RegexError {
-	for memory.loc() < len(regexString) {
-		ch := regexString[memory.loc()]
-		if err := processChar(regexString, memory, ch); err != nil {
+func parse(regexString string, parseContext *parsingContext) *RegexError {
+	for parseContext.loc() < len(regexString) {
+		ch := regexString[parseContext.loc()]
+		if err := processChar(regexString, parseContext, ch); err != nil {
 			return err
 		}
-		memory.adv()
+		parseContext.adv()
 	}
 	return nil
 }
