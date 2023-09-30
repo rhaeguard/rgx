@@ -74,8 +74,6 @@ func dot(s *State, processedStateForDot map[string]bool) {
 			label = "any"
 		} else if char == epsilonChar {
 			label = "ε"
-		} else if char == '\\' {
-			label = "backslash"
 		} else {
 			label = fmt.Sprintf("\"%c\"", char)
 		}
