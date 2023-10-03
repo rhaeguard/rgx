@@ -30,7 +30,7 @@ type regexToken struct {
 type quantifierPayload struct {
 	min   int
 	max   int
-	value interface{}
+	value regexToken
 }
 
 type groupTokenPayload struct {
@@ -312,7 +312,7 @@ func parseQuantifier(ch uint8, parseContext *parsingContext) {
 		value: quantifierPayload{
 			min:   bounds[0],
 			max:   bounds[1],
-			value: parseContext.removeLast(1),
+			value: parseContext.removeLast(1)[0],
 		},
 	}
 	parseContext.push(token)
@@ -449,7 +449,7 @@ func parseBoundedQuantifier(regexString string, parseContext *parsingContext) *R
 		value: quantifierPayload{
 			min:   start,
 			max:   end,
-			value: parseContext.removeLast(1),
+			value: parseContext.removeLast(1)[0],
 		},
 	}
 	parseContext.push(token)

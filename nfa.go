@@ -34,10 +34,7 @@ const (
 )
 
 func toNfa(parseContext *parsingContext) (*State, *RegexError) {
-	startFrom := 0
-	endAt := len(parseContext.tokens) - 1
-
-	token := parseContext.tokens[startFrom]
+	token := parseContext.tokens[0]
 	startState, endState, err := tokenToNfa(token, parseContext, &State{
 		transitions: map[uint8][]*State{},
 	})
@@ -46,7 +43,7 @@ func toNfa(parseContext *parsingContext) (*State, *RegexError) {
 		return nil, err
 	}
 
-	for i := startFrom + 1; i <= endAt; i++ {
+	for i := 1; i < len(parseContext.tokens); i++ {
 		_, endNext, err := tokenToNfa(parseContext.tokens[i], parseContext, endState)
 		if err != nil {
 			return nil, err
@@ -302,12 +299,7 @@ func handleQuantifierToToken(token regexToken, parseContext *parsingContext, sta
 			total = min
 		}
 	}
-	var value regexToken
-	if token.tokenType == quantifier {
-		value = token.value.(quantifierPayload).value.([]regexToken)[0]
-	} else {
-		value = token.value.([]regexToken)[0]
-	}
+	var value = payload.value
 	previousStart, previousEnd, err := tokenToNfa(value, parseContext, &State{
 		transitions: map[uint8][]*State{},
 	})
