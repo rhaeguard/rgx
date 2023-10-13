@@ -4,6 +4,8 @@
 
 A very simple regex engine written in go. This library is experimental, use it at your own risk!
 
+read the [article](https://rhaeguard.github.io/posts/regex).
+
 ### to add the dependency:
 
 ```shell
